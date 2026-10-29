@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>現場QR入力 ＆ カスタム集計アプリ</title>
+  <title>現場QR入力 ＆ 集計管理アプリ</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     :root {
@@ -27,25 +27,20 @@
     }
     h2 { font-size: 1.1rem; color: var(--accent-green); margin: 0 0 10px 0; }
     
+    /* トータル数量表示パネル */
     .summary-card {
       background-color: var(--card-bg);
       border: 1px solid var(--border-color);
       border-radius: 8px;
-      padding: 12px;
+      padding: 14px;
       margin-bottom: 12px;
-      display: flex;
-      justify-content: space-around;
       text-align: center;
     }
-    .summary-item { flex: 1; }
-    .summary-item:first-child { border-right: 1px solid var(--border-color); }
-    .summary-title { font-size: 0.75rem; color: var(--text-sub); margin-bottom: 4px; }
-    .summary-value { font-size: 1.4rem; font-weight: bold; }
-    .val-qty { color: var(--accent-yellow); }
-    .val-weight { color: var(--accent-green); }
+    .summary-title { font-size: 0.8rem; color: var(--text-sub); margin-bottom: 4px; }
+    .summary-value { font-size: 2rem; font-weight: bold; color: var(--accent-yellow); }
 
     label { font-size: 0.85rem; color: var(--text-sub); display: block; margin-top: 8px; }
-    textarea, select {
+    textarea {
       width: 100%;
       font-size: 1rem;
       padding: 10px;
@@ -55,55 +50,21 @@
       border: 1px solid var(--border-color);
       border-radius: 6px;
       margin-top: 4px;
+      height: 90px;
+      resize: vertical;
     }
-    textarea { height: 90px; resize: vertical; }
-    textarea:focus, select:focus { outline: none; border-color: var(--accent-green); }
-    
-    .config-box {
-      background-color: var(--card-bg);
-      border: 1px dashed var(--accent-blue);
-      border-radius: 6px;
-      padding: 10px;
-      margin-top: 8px;
-    }
-    .config-title { font-size: 0.8rem; color: var(--accent-blue); font-weight: bold; margin-bottom: 6px; }
-    .order-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-    .order-tag {
-      background: #2A2A2A;
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      padding: 4px 8px;
-      font-size: 0.75rem;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .btn-order { background: none; border: none; color: var(--accent-green); font-size: 0.8rem; cursor: pointer; padding: 0 2px; }
+    textarea:focus { outline: none; border-color: var(--accent-green); }
 
-    .preset-row { display: flex; gap: 6px; margin-bottom: 8px; }
-    .btn-save-preset {
-      background: var(--accent-blue);
-      color: #000;
-      border: none;
-      padding: 0 10px;
-      border-radius: 6px;
-      font-weight: bold;
-      font-size: 0.8rem;
-      white-space: nowrap;
-    }
-
+    /* 入力順ガイドバー */
     .input-guide-bar {
       background-color: #263238;
       border: 1px solid #37474F;
       border-radius: 6px;
       padding: 8px 10px;
-      margin-top: 10px;
-      font-size: 0.82rem;
+      margin-top: 8px;
+      font-size: 0.85rem;
       color: var(--accent-green);
       font-weight: bold;
-      display: flex;
-      align-items: center;
-      gap: 6px;
     }
 
     .btn-group { display: flex; gap: 8px; margin-top: 10px; }
@@ -170,7 +131,7 @@
       font-size: 0.85rem;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
     .history-checkbox { width: 20px; height: 20px; accent-color: var(--accent-blue); }
     .history-content { flex: 1; cursor: pointer; }
@@ -182,44 +143,35 @@
       margin-bottom: 4px;
     }
     .history-data { font-weight: bold; word-break: break-all; }
+    
+    .btn-edit {
+      background: none;
+      border: 1px solid var(--border-color);
+      color: var(--accent-blue);
+      border-radius: 4px;
+      padding: 6px 8px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
 
   <h2>📱 現場データ入力 ＆ 集計管理</h2>
 
+  <!-- 統一された合計数量パネル -->
   <div class="summary-card">
-    <div class="summary-item">
-      <div class="summary-title">現在のトータル数量</div>
-      <div class="summary-value val-qty" id="totalQty">0</div>
-    </div>
-    <div class="summary-item">
-      <div class="summary-title">現在のトータル重量</div>
-      <div class="summary-value val-weight" id="totalWeight">0.0 kg</div>
-    </div>
+    <div class="summary-title">現在のトータル数量</div>
+    <div class="summary-value" id="totalQty">0</div>
   </div>
 
-  <div class="config-box">
-    <div class="config-title">⚙️ 項目セット（フォーマット選択）</div>
-    <div class="preset-row">
-      <select id="presetSelect" onchange="changePreset()">
-        <option value="default">標準セット（品名 ➔ ロット ➔ 注番 ➔ 数量 ➔ 重量）</option>
-        <option value="weight_only">簡易重量セット（品名 ➔ 重量のみ）</option>
-        <option value="cloud">クラウド在庫用（注番 ➔ 品名 ➔ ロット ➔ 数量 ➔ 重量 ➔ 日時）</option>
-      </select>
-      <button class="btn-save-preset" onclick="saveCustomPreset()">現在の並びを保存</button>
-    </div>
-    <div class="config-title" style="margin-top:6px;">並び順の微調整（「←」「→」で変更）</div>
-    <div class="order-list" id="orderList"></div>
-  </div>
-
+  <!-- 固定順ガイド -->
   <div class="input-guide-bar">
-    <span>📌 入力順:</span>
-    <span id="guideText">品名 ➔ ロット ➔ 注番 ➔ 数量 ➔ 重量</span>
+    📌 入力順: 品名 ➔ 数量 ➔ 注番
   </div>
 
-  <label for="inputText">データ入力（品名, 重量のみの入力も自動判定）</label>
-  <textarea id="inputText" placeholder="【全入力例】ボルトM6, LOT123, PO-999, 10, 30.2&#10;【重量のみ例】端材パーツ, 15.8"></textarea>
+  <label for="inputText">データ入力（カンマ区切り / 省略可能）</label>
+  <textarea id="inputText" placeholder="入力例:&#10;ボルトM6, 100, PO-999&#10;ナットM6, 20.5, PO-999&#10;ワッシャーM6, 50"></textarea>
 
   <div class="btn-group">
     <button class="btn-main" onclick="processAndSave()">保存してQR表示</button>
@@ -241,118 +193,11 @@
   <div class="history-list" id="historyList"></div>
 
   <script>
-    const STORAGE_KEY = 'qr_input_history_v3';
-    const ORDER_KEY = 'qr_field_order_v1';
-    const PRESETS_KEY = 'qr_custom_presets_v1';
-
-    let fieldOrder = ['name', 'lot', 'po', 'qty', 'weight', 'time'];
-    const fieldLabels = {
-      name: '品名',
-      lot: 'ロット',
-      po: '注番',
-      qty: '数量',
-      weight: '重量',
-      time: '登録日時'
-    };
-
-    const defaultPresets = {
-      default: ['name', 'lot', 'po', 'qty', 'weight', 'time'],
-      weight_only: ['name', 'weight', 'lot', 'po', 'qty', 'time'],
-      cloud: ['po', 'name', 'lot', 'qty', 'weight', 'time']
-    };
+    const STORAGE_KEY = 'qr_input_history_v4';
 
     window.onload = function() {
-      loadPresetsUI();
-      const savedOrder = localStorage.getItem(ORDER_KEY);
-      if (savedOrder) {
-        fieldOrder = JSON.parse(savedOrder);
-      }
-      renderOrderUI();
       renderHistory();
     };
-
-    function loadPresetsUI() {
-      const select = document.getElementById('presetSelect');
-      const customPresets = JSON.parse(localStorage.getItem(PRESETS_KEY) || "{}");
-      
-      select.innerHTML = `
-        <option value="default">標準セット（品名 ➔ ロット ➔ 注番 ➔ 数量 ➔ 重量）</option>
-        <option value="weight_only">簡易重量セット（品名 ➔ 重量のみ）</option>
-        <option value="cloud">クラウド在庫用（注番 ➔ 品名 ➔ ロット ➔ 数量 ➔ 重量 ➔ 日時）</option>
-      `;
-
-      Object.keys(customPresets).forEach(key => {
-        const option = document.createElement('option');
-        option.value = `custom_${key}`;
-        option.innerText = `★ ${key}`;
-        select.appendChild(option);
-      });
-    }
-
-    function changePreset() {
-      const val = document.getElementById('presetSelect').value;
-      if (defaultPresets[val]) {
-        fieldOrder = [...defaultPresets[val]];
-      } else if (val.startsWith('custom_')) {
-        const key = val.replace('custom_', '');
-        const customPresets = JSON.parse(localStorage.getItem(PRESETS_KEY) || "{}");
-        if (customPresets[key]) {
-          fieldOrder = [...customPresets[key]];
-        }
-      }
-      saveAndRefreshOrder();
-    }
-
-    function saveCustomPreset() {
-      const name = prompt("現在の並び順セットの名前を入力してください（例: 簡易重量用）");
-      if (!name || !name.trim()) return;
-
-      let customPresets = JSON.parse(localStorage.getItem(PRESETS_KEY) || "{}");
-      customPresets[name.trim()] = [...fieldOrder];
-      localStorage.setItem(PRESETS_KEY, JSON.stringify(customPresets));
-      
-      loadPresetsUI();
-      document.getElementById('presetSelect').value = `custom_${name.trim()}`;
-      alert(`「${name.trim()}」セットを保存しました！`);
-    }
-
-    function renderOrderUI() {
-      const container = document.getElementById('orderList');
-      container.innerHTML = "";
-      
-      let guideItems = [];
-
-      fieldOrder.forEach((key, index) => {
-        const tag = document.createElement('div');
-        tag.className = 'order-tag';
-        tag.innerHTML = `
-          <span>${fieldLabels[key]}</span>
-          ${index > 0 ? `<button class="btn-order" onclick="moveField(${index}, -1)">←</button>` : ''}
-          ${index < fieldOrder.length - 1 ? `<button class="btn-order" onclick="moveField(${index}, 1)">→</button>` : ''}
-        `;
-        container.appendChild(tag);
-
-        if (key !== 'time') {
-          guideItems.push(fieldLabels[key]);
-        }
-      });
-
-      document.getElementById('guideText').innerText = guideItems.join(' ➔ ');
-    }
-
-    function moveField(index, direction) {
-      const targetIndex = index + direction;
-      if (targetIndex < 0 || targetIndex >= fieldOrder.length) return;
-      const temp = fieldOrder[index];
-      fieldOrder[index] = fieldOrder[targetIndex];
-      fieldOrder[targetIndex] = temp;
-      saveAndRefreshOrder();
-    }
-
-    function saveAndRefreshOrder() {
-      localStorage.setItem(ORDER_KEY, JSON.stringify(fieldOrder));
-      renderOrderUI();
-    }
 
     function parseNumber(val) {
       if (!val) return 0;
@@ -360,32 +205,20 @@
       return isNaN(num) ? 0 : num;
     }
 
-    // 1行分の成形（「品名, 重量」の2要素入力への柔軟対応）
+    // 1行分の成形（品名 ➔ 数量 ➔ 注番 固定）
     function parseSingleLine(rawLine, timeStr) {
       const items = rawLine.split(/[,、\t]/).map(i => i.trim());
       if (items.length === 0 || (items.length === 1 && items[0] === "")) return null;
 
-      let dataMap = { name: "", lot: "", po: "", qty: 0, weight: 0, time: timeStr };
+      const pName = items[0] || "";
+      const qty   = parseNumber(items[1]);
+      const pPo   = items[2] || "";
 
-      // 要素が2つだけで、2つ目が数値（または小数）の場合は「品名, 重量」と自動判別
-      if (items.length === 2 && !isNaN(parseFloat(items[1]))) {
-        dataMap.name = items[0];
-        dataMap.weight = parseNumber(items[1]);
-      } else {
-        dataMap.name = items[0] || "";
-        dataMap.lot = items[1] || "";
-        dataMap.po = items[2] || "";
-        dataMap.qty = parseNumber(items[3]);
-        dataMap.weight = parseNumber(items[4]);
-      }
-
-      const orderedItems = fieldOrder.map(key => {
-        const val = dataMap[key];
-        return (val !== undefined && val !== null) ? val : "";
-      });
-
+      // ダブルクォーテーション囲み & タブ結合
+      const orderedItems = [pName, qty, pPo];
       const formatted = orderedItems.map(item => `"${item}"`).join('\t');
-      return { formatted, qty: dataMap.qty, weight: dataMap.weight };
+      
+      return { formatted, qty };
     }
 
     function processAndSave() {
@@ -400,14 +233,12 @@
 
       let formattedLines = [];
       let lineQtySum = 0;
-      let lineWeightSum = 0;
 
       lines.forEach(line => {
         const parsed = parseSingleLine(line, timeStr);
         if (parsed) {
           formattedLines.push(parsed.formatted);
           lineQtySum += parsed.qty;
-          lineWeightSum += parsed.weight;
         }
       });
 
@@ -422,11 +253,50 @@
         raw: rawText,
         formatted: finalQrText,
         count: lines.length,
-        qty: lineQtySum,
-        weight: Math.round(lineWeightSum * 100) / 100
+        qty: Math.round(lineQtySum * 100) / 100
       });
 
       document.getElementById('inputText').value = "";
+    }
+
+    // 履歴の編集機能
+    function editHistory(index) {
+      let history = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      if (!history[index]) return;
+
+      const currentRaw = history[index].raw;
+      const newRaw = prompt("入力内容を修正してください（複数行も可）:", currentRaw);
+
+      if (newRaw === null) return; // キャンセル時
+      if (!newRaw.trim()) {
+        alert("空文字での保存はできません。削除したい場合は「選択削除」を使用してください。");
+        return;
+      }
+
+      const lines = newRaw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      let formattedLines = [];
+      let lineQtySum = 0;
+
+      lines.forEach(line => {
+        const parsed = parseSingleLine(line, history[index].timestamp);
+        if (parsed) {
+          formattedLines.push(parsed.formatted);
+          lineQtySum += parsed.qty;
+        }
+      });
+
+      // データの更新
+      history[index].raw = newRaw;
+      history[index].formatted = formattedLines.join('\n');
+      history[index].count = lines.length;
+      history[index].qty = Math.round(lineQtySum * 100) / 100;
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+      renderHistory();
+      
+      // 更新した履歴のQRを再描画
+      renderQR(history[index].formatted);
+      document.getElementById('qrStatus').innerText = `履歴を更新・再表示しました`;
     }
 
     function generateCombinedQR() {
@@ -494,7 +364,6 @@
       document.getElementById('historyCount').innerText = `${history.length}件`;
 
       let totalQty = 0;
-      let totalWeight = 0;
 
       listContainer.innerHTML = "";
       if (history.length === 0) {
@@ -502,7 +371,6 @@
       } else {
         history.forEach((item, index) => {
           totalQty += (item.qty || 0);
-          totalWeight += (item.weight || 0);
 
           const no = history.length - index;
           const card = document.createElement('div');
@@ -516,6 +384,7 @@
               </div>
               <div class="history-data">${item.raw.replace(/\n/g, ' / ')}</div>
             </div>
+            <button class="btn-edit" onclick="editHistory(${index})">✏️ 編集</button>
           `;
 
           card.querySelector('.history-content').onclick = function() {
@@ -528,8 +397,7 @@
         });
       }
 
-      document.getElementById('totalQty').innerText = totalQty.toLocaleString();
-      document.getElementById('totalWeight').innerText = `${(Math.round(totalWeight * 100) / 100).toLocaleString()} kg`;
+      document.getElementById('totalQty').innerText = (Math.round(totalQty * 100) / 100).toLocaleString();
     }
 
     function clearHistory() {
