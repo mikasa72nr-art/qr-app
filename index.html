@@ -59,7 +59,6 @@
     textarea { height: 90px; resize: vertical; }
     textarea:focus, select:focus { outline: none; border-color: var(--accent-green); }
     
-    /* 項目カスタム設定エリア */
     .config-box {
       background-color: var(--card-bg);
       border: 1px dashed var(--accent-blue);
@@ -123,14 +122,18 @@
       border-bottom: 1px solid var(--border-color);
       padding-bottom: 6px;
     }
-    .btn-clear {
-      background: #D32F2F;
-      color: #FFF;
+    .btn-action {
       border: none;
       padding: 4px 8px;
       border-radius: 4px;
       font-size: 0.75rem;
+      font-weight: bold;
+      cursor: pointer;
     }
+    .btn-combine { background-color: var(--accent-blue); color: #000; }
+    .btn-delete-sub { background-color: #FF9800; color: #000; }
+    .btn-clear { background-color: #D32F2F; color: #FFF; }
+
     .history-list { margin-top: 10px; }
     .history-card {
       background-color: var(--card-bg);
@@ -189,9 +192,10 @@
 
   <div class="history-header">
     <h3 style="font-size: 0.95rem; margin:0;">📋 履歴（<span id="historyCount">0件</span>）</h3>
-    <div>
-      <button class="btn-clear" style="background-color: var(--accent-blue); color: #000; font-weight: bold; margin-right: 4px;" onclick="generateCombinedQR()">選択した履歴をまとめQR化</button>
-      <button class="btn-clear" onclick="clearHistory()">全削除</button>
+    <div style="display: flex; gap: 4px;">
+      <button class="btn-action btn-combine" onclick="generateCombinedQR()">まとめQR</button>
+      <button class="btn-action btn-delete-sub" onclick="deleteSelectedHistory()">選択削除</button>
+      <button class="btn-action btn-clear" onclick="clearHistory()">全削除</button>
     </div>
   </div>
   <div class="history-list" id="historyList"></div>
@@ -200,7 +204,6 @@
     const STORAGE_KEY = 'qr_input_history_v3';
     const ORDER_KEY = 'qr_field_order_v1';
 
-    // デフォルトの項目構成
     let fieldOrder = ['name', 'lot', 'po', 'qty', 'weight', 'time'];
     const fieldLabels = {
       name: '品名',
@@ -220,7 +223,6 @@
       renderHistory();
     };
 
-    // 並び順UIの描画
     function renderOrderUI() {
       const container = document.getElementById('orderList');
       container.innerHTML = "";
@@ -252,9 +254,7 @@
       return isNaN(num) ? 0 : num;
     }
 
-    // 1行分の成形（入力省略・空欄自動補正対応）
     function parseSingleLine(rawLine, timeStr) {
-      // カンマ区切りで分割（空文字も保持するためsplit関数の設計を調整）
       const items = rawLine.split(/[,、\t]/).map(i => i.trim());
       if (items.length === 0 || (items.length === 1 && items[0] === "")) return null;
 
@@ -267,13 +267,11 @@
         time: timeStr
       };
 
-      // 設定された並び順に従って配列化（空文字の場合もそのまま出力）
       const orderedItems = fieldOrder.map(key => {
         const val = dataMap[key];
         return (val !== undefined && val !== null) ? val : "";
       });
 
-      // 全項目をダブルクォーテーション囲み・タブ結合（省略項目は `""` になる）
       const formatted = orderedItems.map(item => `"${item}"`).join('\t');
       return { formatted, qty: dataMap.qty, weight: dataMap.weight };
     }
@@ -340,6 +338,26 @@
       renderQR(finalQrText);
       document.getElementById('qrStatus').innerText = `選択履歴のまとめQR生成完了 (${checkboxes.length}件分)`;
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // 選択した履歴の削除関数
+    function deleteSelectedHistory() {
+      const checkboxes = document.querySelectorAll('.history-checkbox:checked');
+      if (checkboxes.length === 0) {
+        alert("削除したい履歴にチェックを入れてください。");
+        return;
+      }
+
+      if (confirm(`${checkboxes.length} 件の履歴を削除しますか？`)) {
+        let history = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+        const indexesToDelete = Array.from(checkboxes).map(cb => parseInt(cb.dataset.index));
+        
+        // 削除対象外の要素だけ残す
+        history = history.filter((_, index) => !indexesToDelete.includes(index));
+        
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+        renderHistory();
+      }
     }
 
     function renderQR(text) {
