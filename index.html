@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>現場QR入力 ＆ 履歴管理アプリ</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    :root {
+      --bg-color: #121212;
+      --card-bg: #1E1E1E;
+      --accent-green: #00E676;
+      --accent-orange: #FF6D00;
+      --text-main: #FFFFFF;
+      --text-sub: #AAAAAA;
+      --border-color: #333333;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 12px;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      margin: 0;
+      padding-bottom: 60px;
+    }
+    h2 { font-size: 1.1rem; color: var(--accent-green); margin: 0 0 10px 0; }
+    label { font-size: 0.85rem; color: var(--text-sub); display: block; margin-top: 8px; }
+    textarea, select {
+      width: 100%;
+      font-size: 1rem;
+      padding: 10px;
+      box-sizing: border-box;
+      background-color: var(--card-bg);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      margin-top: 4px;
+    }
+    textarea { height: 70px; resize: none; }
+    textarea:focus, select:focus { outline: none; border-color: var(--accent-green); }
+    .btn-main {
+      width: 100%;
+      margin-top: 10px;
+      padding: 14px;
+      background-color: var(--accent-orange);
+      color: #FFF;
+      font-size: 1rem;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .btn-main:active { opacity: 0.8; }
+    .qr-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 15px;
+    }
+    #qrcode {
+      background-color: #FFFFFF;
+      padding: 20px;
+      border-radius: 10px;
+      display: inline-block;
+    }
+    #qrcode img, #qrcode canvas {
+      width: 250px !important;
+      height: 250px !important;
+      display: block;
+      image-rendering: pixelated;
+    }
+    .qr-info { font-size: 0.8rem; color: var(--text-sub); margin-top: 6px; }
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 25px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 6px;
+    }
+    .btn-clear {
+      background: #D32F2F;
+      color: #FFF;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+    }
+    .history-list { margin-top: 10px; }
+    .history-card {
+      background-color: var(--card-bg);
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border-left: 4px solid var(--accent-green);
+      font-size: 0.85rem;
+    }
+    .history-card-header {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-sub);
+      font-size: 0.75rem;
+      margin-bottom: 4px;
+    }
+    .history-data { font-weight: bold; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <h2>📱 現場データ入力 ＆ QR生成</h2>
+  <label for="presetSelect">送り先フォーマット（並び順設定）</label>
+  <select id="presetSelect">
+    <option value="normal">標準（入力順：品名 ➔ ロット ➔ 注番 ➔ 数量）</option>
+    <option value="cloud">クラウド在庫用（注番 ➔ 品名 ➔ ロット ➔ 数量 ➔ 登録日時）</option>
+  </select>
+  <label for="inputText">データ一括入力（カンマ区切り）</label>
+  <textarea id="inputText" placeholder="ボルトM6, LOT123, PO-999, 100"></textarea>
+  <button class="btn-main" onclick="processAndSave()">保存してQR表示</button>
+  <div class="qr-wrapper">
+    <div id="qrcode"></div>
+    <div class="qr-info" id="qrStatus">データを入力して「保存してQR表示」を押してください</div>
+  </div>
+  <div class="history-header">
+    <h3 style="font-size: 0.95rem; margin:0;">📋 入力履歴（<span id="historyCount">全 0 件</span>）</h3>
+    <button class="btn-clear" onclick="clearHistory()">履歴全削除</button>
+  </div>
+  <div class="history-list" id="historyList"></div>
+  <script>
+    const STORAGE_KEY = 'qr_input_history_v1';
+    window.onload = function() { renderHistory(); };
+    function processAndSave() {
+      const rawText = document.getElementById('inputText').value;
+      if (!rawText.trim()) return;
+      const items = rawText.split(/[,、\s\n]+/).map(i => i.trim()).filter(i => i.length > 0);
+      if (items.length === 0) return;
+      const now = new Date();
+      const timeStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+      const preset = document.getElementById('presetSelect').value;
+      let orderedItems = [];
+      if (preset === 'cloud') {
+        const pName = items[0] || "";
+        const pLot = items[1] || "";
+        const pPo  = items[2] || "";
+        const pQty = items[3] || "";
+        orderedItems = [pPo, pName, pLot, pQty, timeStr];
+      } else {
+        orderedItems = [...items];
+      }
+      const formattedText = orderedItems.map(item => `"${item}"`).join('\t');
+      const qrContainer = document.getElementById('qrcode');
+      qrContainer.innerHTML = "";
+      new QRCode(qrContainer, {
+        text: formattedText,
+        width: 250,
+        height: 250,
+        correctLevel: QRCode.CorrectLevel.M
+      });
+      document.getElementById('qrStatus').innerText = `生成完了 (${timeStr})`;
+      saveToHistory({ timestamp: timeStr, raw: rawText, formatted: formattedText });
+      document.getElementById('inputText').value = "";
+    }
+    function saveToHistory(record) {
+      let history = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      history.unshift(record);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+      renderHistory();
+    }
+    function renderHistory() {
+      const history = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      const listContainer = document.getElementById('historyList');
+      document.getElementById('historyCount').innerText = `全 ${history.length} 件`;
+      listContainer.innerHTML = "";
+      if (history.length === 0) {
+        listContainer.innerHTML = '<div style="color:var(--text-sub); font-size:0.8rem; text-align:center; padding:10px;">履歴はありません</div>';
+        return;
+      }
+      history.forEach((item, index) => {
+        const no = history.length - index;
+        const card = document.createElement('div');
+        card.className = 'history-card';
+        card.innerHTML = `
+          <div class="history-card-header">
+            <span>[No. ${String(no).padStart(2, '0')}]</span>
+            <span>${item.timestamp}</span>
+          </div>
+          <div class="history-data">${item.raw}</div>
+        `;
+        card.onclick = function() {
+          const qrContainer = document.getElementById('qrcode');
+          qrContainer.innerHTML = "";
+          new QRCode(qrContainer, {
+            text: item.formatted,
+            width: 250,
+            height: 250,
+            correctLevel: QRCode.CorrectLevel.M
+          });
+          document.getElementById('qrStatus').innerText = `再出力 [No. ${String(no).padStart(2, '0')}] (${item.timestamp})`;
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+        listContainer.appendChild(card);
+      });
+    }
+    function clearHistory() {
+      if (confirm("全ての入力履歴を削除しますか？")) {
+        localStorage.removeItem(STORAGE_KEY);
+        document.getElementById('qrcode').innerHTML = "";
+        document.getElementById('qrStatus').innerText = "データを入力して「保存してQR表示」を押してください";
+        renderHistory();
+      }
+    }
+  </script>
+</body>
+</html>
