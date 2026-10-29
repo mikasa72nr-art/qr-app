@@ -59,7 +59,6 @@
     textarea { height: 90px; resize: vertical; }
     textarea:focus, select:focus { outline: none; border-color: var(--accent-green); }
     
-    /* 項目カスタム設定エリア */
     .config-box {
       background-color: var(--card-bg);
       border: 1px dashed var(--accent-blue);
@@ -81,7 +80,6 @@
     }
     .btn-order { background: none; border: none; color: var(--accent-green); font-size: 0.8rem; cursor: pointer; padding: 0 2px; }
 
-    /* プリセット選択エリア */
     .preset-row { display: flex; gap: 6px; margin-bottom: 8px; }
     .btn-save-preset {
       background: var(--accent-blue);
@@ -94,7 +92,6 @@
       white-space: nowrap;
     }
 
-    /* 入力ガイドバー */
     .input-guide-bar {
       background-color: #263238;
       border: 1px solid #37474F;
@@ -207,6 +204,7 @@
     <div class="preset-row">
       <select id="presetSelect" onchange="changePreset()">
         <option value="default">標準セット（品名 ➔ ロット ➔ 注番 ➔ 数量 ➔ 重量）</option>
+        <option value="weight_only">簡易重量セット（品名 ➔ 重量のみ）</option>
         <option value="cloud">クラウド在庫用（注番 ➔ 品名 ➔ ロット ➔ 数量 ➔ 重量 ➔ 日時）</option>
       </select>
       <button class="btn-save-preset" onclick="saveCustomPreset()">現在の並びを保存</button>
@@ -220,8 +218,8 @@
     <span id="guideText">品名 ➔ ロット ➔ 注番 ➔ 数量 ➔ 重量</span>
   </div>
 
-  <label for="inputText">データ入力（省略箇所はカンマ連続 `, ,` またはそのまま送信）</label>
-  <textarea id="inputText" placeholder="入力例（上記ガイド順に入力）:&#10;ボルトM6, LOT123, PO-999, 10, 30.2&#10;ナットM6,, PO-999, 20, 15.5"></textarea>
+  <label for="inputText">データ入力（品名, 重量のみの入力も自動判定）</label>
+  <textarea id="inputText" placeholder="【全入力例】ボルトM6, LOT123, PO-999, 10, 30.2&#10;【重量のみ例】端材パーツ, 15.8"></textarea>
 
   <div class="btn-group">
     <button class="btn-main" onclick="processAndSave()">保存してQR表示</button>
@@ -257,9 +255,9 @@
       time: '登録日時'
     };
 
-    // デフォルトのセット定義
     const defaultPresets = {
       default: ['name', 'lot', 'po', 'qty', 'weight', 'time'],
+      weight_only: ['name', 'weight', 'lot', 'po', 'qty', 'time'],
       cloud: ['po', 'name', 'lot', 'qty', 'weight', 'time']
     };
 
@@ -273,13 +271,13 @@
       renderHistory();
     };
 
-    // プリセット一覧のドロップダウン更新
     function loadPresetsUI() {
       const select = document.getElementById('presetSelect');
       const customPresets = JSON.parse(localStorage.getItem(PRESETS_KEY) || "{}");
       
       select.innerHTML = `
         <option value="default">標準セット（品名 ➔ ロット ➔ 注番 ➔ 数量 ➔ 重量）</option>
+        <option value="weight_only">簡易重量セット（品名 ➔ 重量のみ）</option>
         <option value="cloud">クラウド在庫用（注番 ➔ 品名 ➔ ロット ➔ 数量 ➔ 重量 ➔ 日時）</option>
       `;
 
@@ -291,7 +289,6 @@
       });
     }
 
-    // プリセット切替時
     function changePreset() {
       const val = document.getElementById('presetSelect').value;
       if (defaultPresets[val]) {
@@ -306,9 +303,8 @@
       saveAndRefreshOrder();
     }
 
-    // 現在の並び順を新しいセットとして保存
     function saveCustomPreset() {
-      const name = prompt("現在の並び順セットの名前を入力してください（例: 棚卸用、出荷用）");
+      const name = prompt("現在の並び順セットの名前を入力してください（例: 簡易重量用）");
       if (!name || !name.trim()) return;
 
       let customPresets = JSON.parse(localStorage.getItem(PRESETS_KEY) || "{}");
@@ -364,18 +360,24 @@
       return isNaN(num) ? 0 : num;
     }
 
+    // 1行分の成形（「品名, 重量」の2要素入力への柔軟対応）
     function parseSingleLine(rawLine, timeStr) {
       const items = rawLine.split(/[,、\t]/).map(i => i.trim());
       if (items.length === 0 || (items.length === 1 && items[0] === "")) return null;
 
-      const dataMap = {
-        name: items[0] || "",
-        lot: items[1] || "",
-        po: items[2] || "",
-        qty: parseNumber(items[3]),
-        weight: parseNumber(items[4]),
-        time: timeStr
-      };
+      let dataMap = { name: "", lot: "", po: "", qty: 0, weight: 0, time: timeStr };
+
+      // 要素が2つだけで、2つ目が数値（または小数）の場合は「品名, 重量」と自動判別
+      if (items.length === 2 && !isNaN(parseFloat(items[1]))) {
+        dataMap.name = items[0];
+        dataMap.weight = parseNumber(items[1]);
+      } else {
+        dataMap.name = items[0] || "";
+        dataMap.lot = items[1] || "";
+        dataMap.po = items[2] || "";
+        dataMap.qty = parseNumber(items[3]);
+        dataMap.weight = parseNumber(items[4]);
+      }
 
       const orderedItems = fieldOrder.map(key => {
         const val = dataMap[key];
