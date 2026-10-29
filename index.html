@@ -159,13 +159,11 @@
 
   <h2>📱 現場データ入力 ＆ 集計管理</h2>
 
-  <!-- 統一された合計数量パネル -->
   <div class="summary-card">
     <div class="summary-title">現在のトータル数量</div>
     <div class="summary-value" id="totalQty">0</div>
   </div>
 
-  <!-- 固定順ガイド -->
   <div class="input-guide-bar">
     📌 入力順: 品名 ➔ 数量 ➔ 注番
   </div>
@@ -205,7 +203,6 @@
       return isNaN(num) ? 0 : num;
     }
 
-    // 1行分の成形（品名 ➔ 数量 ➔ 注番 固定）
     function parseSingleLine(rawLine, timeStr) {
       const items = rawLine.split(/[,、\t]/).map(i => i.trim());
       if (items.length === 0 || (items.length === 1 && items[0] === "")) return null;
@@ -214,15 +211,15 @@
       const qty   = parseNumber(items[1]);
       const pPo   = items[2] || "";
 
-      // ダブルクォーテーション囲み & タブ結合
       const orderedItems = [pName, qty, pPo];
       const formatted = orderedItems.map(item => `"${item}"`).join('\t');
       
-      return { formatted, qty };
+      return { formatted, qty, pName, pPo };
     }
 
     function processAndSave() {
-      const rawText = document.getElementById('inputText').value;
+      const inputEl = document.getElementById('inputText');
+      const rawText = inputEl.value;
       if (!rawText.trim()) return;
 
       const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
@@ -233,12 +230,16 @@
 
       let formattedLines = [];
       let lineQtySum = 0;
+      let lastPName = "";
+      let lastPPo = "";
 
       lines.forEach(line => {
         const parsed = parseSingleLine(line, timeStr);
         if (parsed) {
           formattedLines.push(parsed.formatted);
           lineQtySum += parsed.qty;
+          lastPName = parsed.pName;
+          lastPPo = parsed.pPo;
         }
       });
 
@@ -256,10 +257,28 @@
         qty: Math.round(lineQtySum * 100) / 100
       });
 
-      document.getElementById('inputText').value = "";
+      // 複製（連続入力）の確認ダイアログ
+      if (confirm(`同じ品名・注番で複製しますか？\n（品名: ${lastPName} / 注番: ${lastPPo}）`)) {
+        // 品名と注番を保持し、数量入力の位置へセット
+        if (lastPPo) {
+          inputEl.value = `${lastPName}, , ${lastPPo}`;
+          // 数量（カンマとカンマの間）にカーソルを合わせる位置調整
+          const pos = lastPName.length + 2;
+          setTimeout(() => {
+            inputEl.focus();
+            inputEl.setSelectionRange(pos, pos);
+          }, 50);
+        } else {
+          inputEl.value = `${lastPName}, `;
+          setTimeout(() => {
+            inputEl.focus();
+          }, 50);
+        }
+      } else {
+        inputEl.value = "";
+      }
     }
 
-    // 履歴の編集機能
     function editHistory(index) {
       let history = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
       if (!history[index]) return;
@@ -267,7 +286,7 @@
       const currentRaw = history[index].raw;
       const newRaw = prompt("入力内容を修正してください（複数行も可）:", currentRaw);
 
-      if (newRaw === null) return; // キャンセル時
+      if (newRaw === null) return;
       if (!newRaw.trim()) {
         alert("空文字での保存はできません。削除したい場合は「選択削除」を使用してください。");
         return;
@@ -285,7 +304,6 @@
         }
       });
 
-      // データの更新
       history[index].raw = newRaw;
       history[index].formatted = formattedLines.join('\n');
       history[index].count = lines.length;
@@ -294,7 +312,6 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
       renderHistory();
       
-      // 更新した履歴のQRを再描画
       renderQR(history[index].formatted);
       document.getElementById('qrStatus').innerText = `履歴を更新・再表示しました`;
     }
