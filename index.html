@@ -225,7 +225,7 @@
       📌 入力順: 品名 ➔ 数量 ➔ 注番
     </div>
     <label for="inputText">データ入力（カンマ区切り / スペース自動削除）</label>
-    <textarea id="inputText" placeholder="入力例:&#10;01707300, 56, A234556&#10;または内部コード単体: 2600002046"></textarea>
+    <textarea id="inputText" placeholder="コード番号: 01707300, 56, A234556&#10;または単体コード: 2600002046"></textarea>
 
     <div class="option-bar">
       <input type="checkbox" id="forceString" checked>
@@ -241,19 +241,19 @@
 
     <div class="wms-field-group">
       <label>1. 品番 <span class="wms-seq-badge">➔ 自動 [↓] [Enter]</span></label>
-      <input type="text" id="wmsPName" placeholder="例: 01707300 または 2600002046">
+      <input type="text" id="wmsPName" placeholder="コード番号: 01707300 または単体コード: 2600002046">
 
       <label>2. 数量</label>
-      <input type="number" id="wmsQty" placeholder="例: 56">
+      <input type="number" id="wmsQty" placeholder="数量を入力: 56">
 
       <label>3. ロット番号 <span class="wms-seq-badge">➔ 自動 [Tab×5]</span></label>
-      <input type="text" id="wmsLot" placeholder="例: LOT12345">
+      <input type="text" id="wmsLot" placeholder="ロット番号を入力: LOT12345">
 
       <label>4. 付属キー1</label>
-      <input type="text" id="wmsKey1" placeholder="例: 任意テキスト/コード">
+      <input type="text" id="wmsKey1" placeholder="付属キー1を入力">
 
       <label>5. 付属キー2 <span class="wms-seq-badge">➔ 自動 [Tab]（次行へ移動）</span></label>
-      <input type="text" id="wmsKey2" placeholder="例: 任意テキスト/コード">
+      <input type="text" id="wmsKey2" placeholder="付属キー2を入力">
     </div>
   </div>
 
@@ -277,7 +277,7 @@
   <div class="history-list" id="historyList"></div>
 
   <script>
-    const STORAGE_KEY = 'qr_input_history_v9';
+    const STORAGE_KEY = 'qr_input_history_v10';
     let currentMode = 'general'; // 'general' または 'wms'
 
     // ASCII 制御文字定義（Tera HW0002用）
@@ -353,7 +353,6 @@
       if (!cleanPName) return null;
 
       const tab5 = TAB_KEY.repeat(5);
-      // シーケンス結合
       const formatted = `${cleanPName}${DOWN_ARROW}${ENTER_KEY}${qtyNum}${cleanLot}${tab5}${cleanKey1}${cleanKey2}${TAB_KEY}`;
       const rawSummary = `[WMS] ${cleanPName} / Qty:${qtyNum} / Lot:${cleanLot} / K1:${cleanKey1} / K2:${cleanKey2}`;
 
@@ -373,7 +372,6 @@
       const timeStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
 
       if (currentMode === 'wms') {
-        // WMSモード処理
         const pName  = document.getElementById('wmsPName').value;
         const qtyStr = document.getElementById('wmsQty').value;
         const lotStr = document.getElementById('wmsLot').value;
@@ -382,7 +380,7 @@
 
         const parsed = parseWmsData(pName, qtyStr, lotStr, key1, key2);
         if (!parsed) {
-          alert("品番を入力してください。");
+          alert("品番（コード番号または単体コード）を入力してください。");
           return;
         }
 
@@ -399,7 +397,6 @@
           qty: parsed.qty
         });
 
-        // 複製・連続入力確認
         if (confirm(`同じ品番・ロット・付属キーで複製しますか？\n（品番: ${parsed.pName} / ロット: ${parsed.lot}）`)) {
           document.getElementById('wmsQty').value = "";
           setTimeout(() => { document.getElementById('wmsQty').focus(); }, 50);
@@ -412,7 +409,6 @@
         }
 
       } else {
-        // 汎用モード処理
         const inputEl = document.getElementById('inputText');
         const isForceString = document.getElementById('forceString').checked;
         const rawText = inputEl.value;
@@ -480,8 +476,7 @@
       const record = history[index];
 
       if (record.mode === 'wms' && record.wmsData) {
-        // WMSモード履歴の修正（制御キー以外のデータのみ直接編集）
-        const newPName = prompt("品番を編集してください:", record.wmsData.pName);
+        const newPName = prompt("品番（コード番号/単体コード）を編集してください:", record.wmsData.pName);
         if (newPName === null) return;
         const newQty = prompt("数量を編集してください:", record.wmsData.qty);
         if (newQty === null) return;
@@ -501,7 +496,6 @@
         record.wmsData = { pName: parsed.pName, qty: parsed.qty, lot: parsed.lot, key1: parsed.key1, key2: parsed.key2 };
 
       } else {
-        // 汎用モード履歴の修正
         const isForceString = document.getElementById('forceString').checked;
         const newRaw = prompt("入力内容を修正してください（複数行も可）:", record.raw);
         if (newRaw === null || !newRaw.trim()) return;
