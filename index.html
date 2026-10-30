@@ -7,43 +7,53 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     :root {
-      --bg-color: #121212;
-      --card-bg: #1E1E1E;
+      --card-bg: rgba(30, 20, 35, 0.75);
+      --card-border: rgba(255, 140, 60, 0.25);
       --accent-green: #00E676;
       --accent-orange: #FF6D00;
       --accent-blue: #29B6F6;
       --accent-yellow: #FFD600;
       --text-main: #FFFFFF;
-      --text-sub: #AAAAAA;
-      --border-color: #333333;
+      --text-sub: #DDCCDD;
+      --border-color: rgba(255, 255, 255, 0.15);
     }
+    
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       padding: 12px;
-      background-color: var(--bg-color);
-      color: var(--text-main);
       margin: 0;
       padding-bottom: 60px;
+      color: var(--text-main);
+      min-height: 100vh;
+      /* 自然のきれいな夕日グラデーション背景 */
+      background: linear-gradient(180deg, #1A0B2E 0%, #4C1C5C 25%, #962856 50%, #C65135 75%, #D9822B 100%) fixed;
+      background-size: cover;
     }
-    h2 { font-size: 1.1rem; color: var(--accent-green); margin: 0 0 10px 0; }
+
+    h2 { font-size: 1.1rem; color: #FFB74D; margin: 0 0 10px 0; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
     
     .summary-card {
       background-color: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 12px;
       padding: 14px;
       margin-bottom: 12px;
       text-align: center;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
     }
     .summary-title { font-size: 0.8rem; color: var(--text-sub); margin-bottom: 4px; }
-    .summary-value { font-size: 2rem; font-weight: bold; color: var(--accent-yellow); }
+    .summary-value { font-size: 2rem; font-weight: bold; color: var(--accent-yellow); text-shadow: 0 0 10px rgba(255,214,0,0.3); }
 
     /* モード切り替えタブ */
     .mode-switch {
       display: flex;
       background-color: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 10px;
       padding: 4px;
       margin-bottom: 12px;
     }
@@ -56,13 +66,13 @@
       color: var(--text-sub);
       font-weight: bold;
       font-size: 0.85rem;
-      border-radius: 6px;
+      border-radius: 8px;
       cursor: pointer;
     }
     .mode-btn.active {
-      background-color: #263238;
-      color: var(--accent-green);
-      border: 1px solid #37474F;
+      background-color: rgba(255, 109, 0, 0.3);
+      color: #FFB74D;
+      border: 1px solid rgba(255, 183, 77, 0.4);
     }
 
     label { font-size: 0.85rem; color: var(--text-sub); display: block; margin-top: 8px; }
@@ -71,26 +81,28 @@
       font-size: 0.95rem;
       padding: 10px;
       box-sizing: border-box;
-      background-color: var(--card-bg);
+      background-color: rgba(15, 10, 20, 0.7);
       color: var(--text-main);
       border: 1px solid var(--border-color);
-      border-radius: 6px;
+      border-radius: 8px;
       margin-top: 4px;
     }
     textarea { height: 90px; resize: vertical; }
-    textarea:focus, input:focus { outline: none; border-color: var(--accent-green); }
+    textarea:focus, input:focus { outline: none; border-color: var(--accent-orange); }
 
     .wms-field-group {
       background-color: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 10px;
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 10px;
+      padding: 12px;
       margin-top: 8px;
     }
     .wms-seq-badge {
       font-size: 0.75rem;
       color: var(--accent-yellow);
-      background-color: #332B00;
+      background-color: rgba(255, 214, 0, 0.15);
       padding: 2px 6px;
       border-radius: 4px;
       margin-left: 6px;
@@ -103,30 +115,30 @@
       margin-top: 4px;
     }
     .btn-sym {
-      background-color: #37474F;
-      color: var(--accent-green);
-      border: 1px solid #546E7A;
-      border-radius: 4px;
-      padding: 6px 12px;
-      font-size: 0.9rem;
+      background-color: rgba(255, 109, 0, 0.2);
+      color: #FFB74D;
+      border: 1px solid rgba(255, 183, 77, 0.3);
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 0.95rem;
       font-weight: bold;
       cursor: pointer;
       user-select: none;
       -webkit-user-select: none;
     }
     .btn-sym:active {
-      background-color: var(--accent-green);
-      color: #000;
+      background-color: var(--accent-orange);
+      color: #FFF;
     }
 
     .input-guide-bar {
-      background-color: #263238;
-      border: 1px solid #37474F;
-      border-radius: 6px;
+      background-color: rgba(40, 20, 50, 0.7);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
       padding: 8px 10px;
       margin-top: 8px;
       font-size: 0.85rem;
-      color: var(--accent-green);
+      color: #FFB74D;
       font-weight: bold;
     }
 
@@ -143,15 +155,16 @@
     .btn-main {
       flex: 1;
       padding: 14px;
-      background-color: var(--accent-orange);
+      background: linear-gradient(135deg, #FF6D00 0%, #E65100 100%);
       color: #FFF;
       font-size: 0.95rem;
       font-weight: bold;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
       cursor: pointer;
+      box-shadow: 0 4px 10px rgba(255, 109, 0, 0.4);
     }
-    .btn-main:active { opacity: 0.8; }
+    .btn-main:active { opacity: 0.85; }
 
     .qr-wrapper {
       display: flex;
@@ -162,8 +175,9 @@
     #qrcode {
       background-color: #FFFFFF;
       padding: 20px;
-      border-radius: 10px;
+      border-radius: 12px;
       display: inline-block;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
     }
     #qrcode img, #qrcode canvas {
       width: 250px !important;
@@ -171,7 +185,7 @@
       display: block;
       image-rendering: pixelated;
     }
-    .qr-info { font-size: 0.8rem; color: var(--text-sub); margin-top: 6px; text-align: center; }
+    .qr-info { font-size: 0.8rem; color: var(--text-sub); margin-top: 8px; text-align: center; }
 
     .history-header {
       display: flex;
@@ -183,8 +197,8 @@
     }
     .btn-action {
       border: none;
-      padding: 4px 8px;
-      border-radius: 4px;
+      padding: 5px 10px;
+      border-radius: 6px;
       font-size: 0.75rem;
       font-weight: bold;
       cursor: pointer;
@@ -196,16 +210,19 @@
     .history-list { margin-top: 10px; }
     .history-card {
       background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       padding: 10px;
-      border-radius: 6px;
+      border-radius: 8px;
       margin-bottom: 8px;
-      border-left: 4px solid var(--accent-green);
+      border-left: 4px solid var(--accent-orange);
       font-size: 0.85rem;
       display: flex;
       align-items: center;
       gap: 8px;
     }
-    .history-checkbox { width: 20px; height: 20px; accent-color: var(--accent-blue); }
+    .history-checkbox { width: 20px; height: 20px; accent-color: var(--accent-orange); }
     .history-content { flex: 1; cursor: pointer; }
     .history-card-header {
       display: flex;
@@ -218,9 +235,9 @@
     
     .btn-edit {
       background: none;
-      border: 1px solid var(--border-color);
+      border: 1px solid var(--card-border);
       color: var(--accent-blue);
-      border-radius: 4px;
+      border-radius: 6px;
       padding: 6px 8px;
       font-size: 0.8rem;
       cursor: pointer;
@@ -229,7 +246,7 @@
 </head>
 <body>
 
-  <h2>📱 現場データ入力 ＆ 集計管理</h2>
+  <h2>🌅 現場QR入力 ＆ 集計管理</h2>
 
   <!-- モード切り替え -->
   <div class="mode-switch">
@@ -312,10 +329,9 @@
   <div class="history-list" id="historyList"></div>
 
   <script>
-    const STORAGE_KEY = 'qr_input_history_v12';
+    const STORAGE_KEY = 'qr_input_history_v13';
     let currentMode = 'general';
 
-    // ASCII 制御文字定義（Tera HW0002用）
     const DOWN_ARROW = '\x04'; // EOT (Down Arrow)
     const ENTER_KEY  = '\n';   // Enter
     const TAB_KEY    = '\t';   // HT (Tab)
@@ -324,7 +340,6 @@
       renderHistory();
     };
 
-    // フォーカスとキーボードの大文字モードを維持して記号挿入
     function insertSymbol(elementId, symbol, event) {
       if (event) event.preventDefault();
 
