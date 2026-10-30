@@ -65,6 +65,15 @@
       font-weight: bold;
     }
 
+    .option-bar {
+      margin-top: 8px;
+      font-size: 0.85rem;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
     .btn-group { display: flex; gap: 8px; margin-top: 10px; }
     .btn-main {
       flex: 1;
@@ -166,8 +175,13 @@
     📌 入力順: 品名 ➔ 数量 ➔ 注番
   </div>
 
-  <label for="inputText">データ入力（カンマ区切り / 余計なスペースは自動カット）</label>
-  <textarea id="inputText" placeholder="入力例:&#10;599, 567, A23345"></textarea>
+  <label for="inputText">データ入力（カンマ区切り / スペース自動削除）</label>
+  <textarea id="inputText" placeholder="入力例:&#10;01707300, 56, A234556&#10;または内部コード単体: 2600002046"></textarea>
+
+  <div class="option-bar">
+    <input type="checkbox" id="forceString" checked>
+    <label for="forceString" style="display:inline; margin:0; cursor:pointer;">Excel頭ゼロ保持（数字品番の先頭に ' を付与）</label>
+  </div>
 
   <div class="btn-group">
     <button class="btn-main" onclick="processAndSave()">保存してQR表示</button>
@@ -189,7 +203,7 @@
   <div class="history-list" id="historyList"></div>
 
   <script>
-    const STORAGE_KEY = 'qr_input_history_v5';
+    const STORAGE_KEY = 'qr_input_history_v7';
 
     window.onload = function() {
       renderHistory();
@@ -197,31 +211,45 @@
 
     function parseNumber(val) {
       if (!val) return 0;
-      // 余計な文字やスペースを排除して純粋な数値のみ抽出
       const cleanVal = val.toString().replace(/[^0-9.]/g, '');
       const num = parseFloat(cleanVal);
       return isNaN(num) ? 0 : num;
     }
 
-    // 1行分の成形（全項目のスペース自動trim処理）
-    function parseSingleLine(rawLine, timeStr) {
-      // カンマまたはタブで分割し、全要素の前後スペース（全角・半角）を完全除去
+    // 単一項目の文字列化（頭ゼロ保護）処理
+    function formatValue(val, isForceString) {
+      if (!val) return "";
+      // 数字のみかつ「0」から始まる場合は先頭にシングルクォートを自動付加
+      if (isForceString && /^\d+$/.test(val) && val.length > 1) {
+        return `'${val}`;
+      }
+      return val;
+    }
+
+    // 1行分の成形
+    function parseSingleLine(rawLine, isForceString) {
       const items = rawLine.split(/[,、\t]/).map(i => i.trim().replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, ''));
       if (items.length === 0 || (items.length === 1 && items[0] === "")) return null;
 
-      const pName = items[0] || "";
-      const qty   = parseNumber(items[1]);
-      const pPo   = items[2] || "";
+      // 1項目だけ（2600002046 などの単体コード入力）の場合は純粋なコードのみ出力
+      if (items.length === 1) {
+        const singleVal = formatValue(items[0], isForceString);
+        return { formatted: singleVal, qty: 0, pName: items[0], pPo: "" };
+      }
 
-      // 完全にクリーン化されたデータでタブ結合
-      const orderedItems = [pName, qty, pPo];
-      const formatted = orderedItems.map(item => `"${item}"`).join('\t');
+      const pName = formatValue(items[0] || "", isForceString);
+      const qty   = parseNumber(items[1]);
+      const pPo   = formatValue(items[2] || "", isForceString);
+
+      // ダブルクォーテーションなしのタブ区切り
+      const formatted = [pName, qty, pPo].join('\t');
       
-      return { formatted, qty, pName, pPo };
+      return { formatted, qty, pName: items[0], pPo: items[2] || "" };
     }
 
     function processAndSave() {
       const inputEl = document.getElementById('inputText');
+      const isForceString = document.getElementById('forceString').checked;
       const rawText = inputEl.value;
       if (!rawText.trim()) return;
 
@@ -237,7 +265,7 @@
       let lastPPo = "";
 
       lines.forEach(line => {
-        const parsed = parseSingleLine(line, timeStr);
+        const parsed = parseSingleLine(line, isForceString);
         if (parsed) {
           formattedLines.push(parsed.formatted);
           lineQtySum += parsed.qty;
@@ -260,25 +288,27 @@
         qty: Math.round(lineQtySum * 100) / 100
       });
 
-      // 複製（連続入力）のダイアログ
-      if (confirm(`同じ品名・注番で複製しますか？\n（品名: ${lastPName} / 注番: ${lastPPo}）`)) {
-        // スペースを挟まず `品名,,注番` のフォーマットでセット
-        if (lastPPo) {
-          inputEl.value = `${lastPName},,${lastPPo}`;
-          // カーソル位置をカンマ直間（数量入力位置）へ移動
-          const pos = lastPName.length + 1;
-          setTimeout(() => {
-            inputEl.focus();
-            inputEl.setSelectionRange(pos, pos);
-          }, 50);
-        } else {
-          inputEl.value = `${lastPName},`;
-          setTimeout(() => {
-            inputEl.focus();
-          }, 50);
-        }
-      } else {
+      // 複数項目入力時のみ連続入力ダイアログを表示
+      if (lines.length === 1 && !rawText.includes(',') && !rawText.includes('、')) {
         inputEl.value = "";
+      } else {
+        if (confirm(`同じ品名・注番で複製しますか？\n（品名: ${lastPName} / 注番: ${lastPPo}）`)) {
+          if (lastPPo) {
+            inputEl.value = `${lastPName},,${lastPPo}`;
+            const pos = lastPName.length + 1;
+            setTimeout(() => {
+              inputEl.focus();
+              inputEl.setSelectionRange(pos, pos);
+            }, 50);
+          } else {
+            inputEl.value = `${lastPName},`;
+            setTimeout(() => {
+              inputEl.focus();
+            }, 50);
+          }
+        } else {
+          inputEl.value = "";
+        }
       }
     }
 
@@ -286,6 +316,7 @@
       let history = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
       if (!history[index]) return;
 
+      const isForceString = document.getElementById('forceString').checked;
       const currentRaw = history[index].raw;
       const newRaw = prompt("入力内容を修正してください（複数行も可）:", currentRaw);
 
@@ -300,7 +331,7 @@
       let lineQtySum = 0;
 
       lines.forEach(line => {
-        const parsed = parseSingleLine(line, history[index].timestamp);
+        const parsed = parseSingleLine(line, isForceString);
         if (parsed) {
           formattedLines.push(parsed.formatted);
           lineQtySum += parsed.qty;
