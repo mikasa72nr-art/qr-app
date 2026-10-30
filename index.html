@@ -96,6 +96,27 @@
       margin-left: 6px;
     }
 
+    /* 記号ワンタップ入力ボタン群 */
+    .symbol-btn-group {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .btn-sym {
+      background-color: #37474F;
+      color: var(--accent-green);
+      border: 1px solid #546E7A;
+      border-radius: 4px;
+      padding: 6px 12px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-sym:active {
+      background-color: var(--accent-green);
+      color: #000;
+    }
+
     .input-guide-bar {
       background-color: #263238;
       border: 1px solid #37474F;
@@ -225,7 +246,7 @@
       📌 入力順: 品名 ➔ 数量 ➔ 注番
     </div>
     <label for="inputText">データ入力（カンマ区切り / スペース自動削除）</label>
-    <textarea id="inputText" placeholder="コード番号 , 56, A234556&#10;または単体コード: 26"></textarea>
+    <textarea id="inputText" placeholder="コード番号: 01707300, 56, A234556&#10;または単体コード: 2600002046"></textarea>
 
     <div class="option-bar">
       <input type="checkbox" id="forceString" checked>
@@ -241,19 +262,31 @@
 
     <div class="wms-field-group">
       <label>1. 品番 <span class="wms-seq-badge">➔ 自動 [↓] [Enter]</span></label>
-      <input type="text" id="wmsPName" placeholder="コード番号 または単体コード: 2600">
+      <input type="text" id="wmsPName" placeholder="コード番号: 01707300 または単体コード: 2600002046">
 
       <label>2. 数量</label>
       <input type="number" id="wmsQty" placeholder="数量を入力: 56">
 
       <label>3. ロット番号 <span class="wms-seq-badge">➔ 自動 [Tab×5]</span></label>
-      <input type="text" id="wmsLot" placeholder="ロット番号を入力: LOT12345">
+      <input type="text" id="wmsLot" placeholder="例: 26/RTT-026-01" style="text-transform: uppercase;">
+      <div class="symbol-btn-group">
+        <button type="button" class="btn-sym" onclick="insertSymbol('wmsLot', '/')">/</button>
+        <button type="button" class="btn-sym" onclick="insertSymbol('wmsLot', '-')">-</button>
+      </div>
 
       <label>4. 付属キー1</label>
-      <input type="text" id="wmsKey1" placeholder="付属キー1を入力">
+      <input type="text" id="wmsKey1" placeholder="付属キー1を入力" style="text-transform: uppercase;">
+      <div class="symbol-btn-group">
+        <button type="button" class="btn-sym" onclick="insertSymbol('wmsKey1', '/')">/</button>
+        <button type="button" class="btn-sym" onclick="insertSymbol('wmsKey1', '-')">-</button>
+      </div>
 
       <label>5. 付属キー2 <span class="wms-seq-badge">➔ 自動 [Tab]（次行へ移動）</span></label>
-      <input type="text" id="wmsKey2" placeholder="付属キー2を入力">
+      <input type="text" id="wmsKey2" placeholder="付属キー2を入力" style="text-transform: uppercase;">
+      <div class="symbol-btn-group">
+        <button type="button" class="btn-sym" onclick="insertSymbol('wmsKey2', '/')">/</button>
+        <button type="button" class="btn-sym" onclick="insertSymbol('wmsKey2', '-')">-</button>
+      </div>
     </div>
   </div>
 
@@ -277,8 +310,8 @@
   <div class="history-list" id="historyList"></div>
 
   <script>
-    const STORAGE_KEY = 'qr_input_history_v10';
-    let currentMode = 'general'; // 'general' または 'wms'
+    const STORAGE_KEY = 'qr_input_history_v11';
+    let currentMode = 'general';
 
     // ASCII 制御文字定義（Tera HW0002用）
     const DOWN_ARROW = '\x04'; // EOT (Down Arrow)
@@ -288,6 +321,18 @@
     window.onload = function() {
       renderHistory();
     };
+
+    // ワンタップでカーソル位置に記号（/ や -）を挿入
+    function insertSymbol(elementId, symbol) {
+      const input = document.getElementById(elementId);
+      const start = input.selectionStart;
+      const end = input.selectionEnd;
+      const text = input.value;
+
+      input.value = text.substring(0, start) + symbol + text.substring(end);
+      input.focus();
+      input.setSelectionRange(start + 1, start + 1);
+    }
 
     function switchMode(mode) {
       currentMode = mode;
@@ -324,7 +369,6 @@
       return val;
     }
 
-    // 汎用モードの1行成形
     function parseGeneralLine(rawLine, isForceString) {
       const items = rawLine.split(/[,、\t]/).map(i => i.trim().replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, ''));
       if (items.length === 0 || (items.length === 1 && items[0] === "")) return null;
@@ -342,13 +386,13 @@
       return { formatted, qty, pName: items[0], pPo: items[2] || "" };
     }
 
-    // WMSモードの1行成形（制御キー固定結合: 品番➔↓➔Enter➔数量➔ロット➔Tab×5➔Key1➔Key2➔Tab）
+    // WMSモードの1行成形（英字自動大文字化 + 制御キー固定結合）
     function parseWmsData(pName, qtyStr, lotStr, key1, key2) {
       const cleanPName = pName.trim();
       const qtyNum     = parseNumber(qtyStr);
-      const cleanLot   = lotStr.trim();
-      const cleanKey1  = key1.trim();
-      const cleanKey2  = key2.trim();
+      const cleanLot   = lotStr.trim().toUpperCase();
+      const cleanKey1  = key1.trim().toUpperCase();
+      const cleanKey2  = key2.trim().toUpperCase();
 
       if (!cleanPName) return null;
 
@@ -380,9 +424,14 @@
 
         const parsed = parseWmsData(pName, qtyStr, lotStr, key1, key2);
         if (!parsed) {
-          alert("品番（コード番号または単体コード）を入力してください。");
+          alert("品番を入力してください。");
           return;
         }
+
+        // 入力フォームの値を自動大文字に更新表示
+        document.getElementById('wmsLot').value = parsed.lot;
+        document.getElementById('wmsKey1').value = parsed.key1;
+        document.getElementById('wmsKey2').value = parsed.key2;
 
         renderQR(parsed.formatted);
         document.getElementById('qrStatus').innerText = `WMS高速QR生成完了 (${timeStr})`;
