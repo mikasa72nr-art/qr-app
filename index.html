@@ -236,20 +236,23 @@
   <!-- WMS高速モード用エリア（制御キー固定順） -->
   <div id="wmsFormArea" style="display:none;">
     <div class="input-guide-bar">
-      ⚡ WMSキーフロー固定: 品番 ➔ [↓] ➔ [Enter] ➔ 数量 ➔ [Tab×6] ➔ 付属キー1 ➔ 付属キー2 ➔ [Tab]
+      ⚡ WMSキーフロー固定: 品番 ➔ [↓] ➔ [Enter] ➔ 数量 ➔ ロット ➔ [Tab×5] ➔ 付属キー1 ➔ 付属キー2 ➔ [Tab]
     </div>
 
     <div class="wms-field-group">
       <label>1. 品番 <span class="wms-seq-badge">➔ 自動 [↓] [Enter]</span></label>
       <input type="text" id="wmsPName" placeholder="例: 01707300 または 2600002046">
 
-      <label>2. 数量 <span class="wms-seq-badge">➔ 自動 [Tab×6]</span></label>
+      <label>2. 数量</label>
       <input type="number" id="wmsQty" placeholder="例: 56">
 
-      <label>3. 付属キー1</label>
+      <label>3. ロット番号 <span class="wms-seq-badge">➔ 自動 [Tab×5]</span></label>
+      <input type="text" id="wmsLot" placeholder="例: LOT12345">
+
+      <label>4. 付属キー1</label>
       <input type="text" id="wmsKey1" placeholder="例: 任意テキスト/コード">
 
-      <label>4. 付属キー2 <span class="wms-seq-badge">➔ 自動 [Tab]（次行へ移動）</span></label>
+      <label>5. 付属キー2 <span class="wms-seq-badge">➔ 自動 [Tab]（次行へ移動）</span></label>
       <input type="text" id="wmsKey2" placeholder="例: 任意テキスト/コード">
     </div>
   </div>
@@ -274,7 +277,7 @@
   <div class="history-list" id="historyList"></div>
 
   <script>
-    const STORAGE_KEY = 'qr_input_history_v8';
+    const STORAGE_KEY = 'qr_input_history_v9';
     let currentMode = 'general'; // 'general' または 'wms'
 
     // ASCII 制御文字定義（Tera HW0002用）
@@ -339,25 +342,27 @@
       return { formatted, qty, pName: items[0], pPo: items[2] || "" };
     }
 
-    // WMSモードの1行成形（制御キー固定結合）
-    function parseWmsData(pName, qtyStr, key1, key2) {
+    // WMSモードの1行成形（制御キー固定結合: 品番➔↓➔Enter➔数量➔ロット➔Tab×5➔Key1➔Key2➔Tab）
+    function parseWmsData(pName, qtyStr, lotStr, key1, key2) {
       const cleanPName = pName.trim();
       const qtyNum     = parseNumber(qtyStr);
+      const cleanLot   = lotStr.trim();
       const cleanKey1  = key1.trim();
       const cleanKey2  = key2.trim();
 
       if (!cleanPName) return null;
 
-      // キーシーケンス結合: 品番 ➔ ↓ ➔ Enter ➔ 数量 ➔ Tab×6 ➔ Key1 ➔ Key2 ➔ Tab
-      const tab6 = TAB_KEY.repeat(6);
-      const formatted = `${cleanPName}${DOWN_ARROW}${ENTER_KEY}${qtyNum}${tab6}${cleanKey1}${cleanKey2}${TAB_KEY}`;
-      const rawSummary = `[WMS] ${cleanPName} / Qty:${qtyNum} / K1:${cleanKey1} / K2:${cleanKey2}`;
+      const tab5 = TAB_KEY.repeat(5);
+      // シーケンス結合
+      const formatted = `${cleanPName}${DOWN_ARROW}${ENTER_KEY}${qtyNum}${cleanLot}${tab5}${cleanKey1}${cleanKey2}${TAB_KEY}`;
+      const rawSummary = `[WMS] ${cleanPName} / Qty:${qtyNum} / Lot:${cleanLot} / K1:${cleanKey1} / K2:${cleanKey2}`;
 
       return {
         formatted,
         qty: qtyNum,
         rawSummary,
         pName: cleanPName,
+        lot: cleanLot,
         key1: cleanKey1,
         key2: cleanKey2
       };
@@ -369,12 +374,13 @@
 
       if (currentMode === 'wms') {
         // WMSモード処理
-        const pName = document.getElementById('wmsPName').value;
+        const pName  = document.getElementById('wmsPName').value;
         const qtyStr = document.getElementById('wmsQty').value;
-        const key1 = document.getElementById('wmsKey1').value;
-        const key2 = document.getElementById('wmsKey2').value;
+        const lotStr = document.getElementById('wmsLot').value;
+        const key1   = document.getElementById('wmsKey1').value;
+        const key2   = document.getElementById('wmsKey2').value;
 
-        const parsed = parseWmsData(pName, qtyStr, key1, key2);
+        const parsed = parseWmsData(pName, qtyStr, lotStr, key1, key2);
         if (!parsed) {
           alert("品番を入力してください。");
           return;
@@ -388,18 +394,19 @@
           timestamp: timeStr,
           raw: parsed.rawSummary,
           formatted: parsed.formatted,
-          wmsData: { pName: parsed.pName, qty: parsed.qty, key1: parsed.key1, key2: parsed.key2 },
+          wmsData: { pName: parsed.pName, qty: parsed.qty, lot: parsed.lot, key1: parsed.key1, key2: parsed.key2 },
           count: 1,
           qty: parsed.qty
         });
 
         // 複製・連続入力確認
-        if (confirm(`同じ品番・付属キーで複製しますか？\n（品番: ${parsed.pName}）`)) {
+        if (confirm(`同じ品番・ロット・付属キーで複製しますか？\n（品番: ${parsed.pName} / ロット: ${parsed.lot}）`)) {
           document.getElementById('wmsQty').value = "";
           setTimeout(() => { document.getElementById('wmsQty').focus(); }, 50);
         } else {
           document.getElementById('wmsPName').value = "";
           document.getElementById('wmsQty').value = "";
+          document.getElementById('wmsLot').value = "";
           document.getElementById('wmsKey1').value = "";
           document.getElementById('wmsKey2').value = "";
         }
@@ -478,18 +485,20 @@
         if (newPName === null) return;
         const newQty = prompt("数量を編集してください:", record.wmsData.qty);
         if (newQty === null) return;
+        const newLot = prompt("ロット番号を編集してください:", record.wmsData.lot || "");
+        if (newLot === null) return;
         const newKey1 = prompt("付属キー1を編集してください:", record.wmsData.key1);
         if (newKey1 === null) return;
         const newKey2 = prompt("付属キー2を編集してください:", record.wmsData.key2);
         if (newKey2 === null) return;
 
-        const parsed = parseWmsData(newPName, newQty, newKey1, newKey2);
+        const parsed = parseWmsData(newPName, newQty, newLot, newKey1, newKey2);
         if (!parsed) return;
 
         record.raw = parsed.rawSummary;
         record.formatted = parsed.formatted;
         record.qty = parsed.qty;
-        record.wmsData = { pName: parsed.pName, qty: parsed.qty, key1: parsed.key1, key2: parsed.key2 };
+        record.wmsData = { pName: parsed.pName, qty: parsed.qty, lot: parsed.lot, key1: parsed.key1, key2: parsed.key2 };
 
       } else {
         // 汎用モード履歴の修正
