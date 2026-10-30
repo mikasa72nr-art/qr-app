@@ -38,10 +38,37 @@
     .summary-title { font-size: 0.8rem; color: var(--text-sub); margin-bottom: 4px; }
     .summary-value { font-size: 2rem; font-weight: bold; color: var(--accent-yellow); }
 
+    /* モード切り替えタブ */
+    .mode-switch {
+      display: flex;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 4px;
+      margin-bottom: 12px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      background: none;
+      border: none;
+      color: var(--text-sub);
+      font-weight: bold;
+      font-size: 0.85rem;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .mode-btn.active {
+      background-color: #263238;
+      color: var(--accent-green);
+      border: 1px solid #37474F;
+    }
+
     label { font-size: 0.85rem; color: var(--text-sub); display: block; margin-top: 8px; }
-    textarea {
+    textarea, input[type="text"], input[type="number"] {
       width: 100%;
-      font-size: 1rem;
+      font-size: 0.95rem;
       padding: 10px;
       box-sizing: border-box;
       background-color: var(--card-bg);
@@ -49,10 +76,25 @@
       border: 1px solid var(--border-color);
       border-radius: 6px;
       margin-top: 4px;
-      height: 90px;
-      resize: vertical;
     }
-    textarea:focus { outline: none; border-color: var(--accent-green); }
+    textarea { height: 90px; resize: vertical; }
+    textarea:focus, input:focus { outline: none; border-color: var(--accent-green); }
+
+    .wms-field-group {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 8px;
+    }
+    .wms-seq-badge {
+      font-size: 0.75rem;
+      color: var(--accent-yellow);
+      background-color: #332B00;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 6px;
+    }
 
     .input-guide-bar {
       background-color: #263238;
@@ -74,7 +116,7 @@
       gap: 6px;
     }
 
-    .btn-group { display: flex; gap: 8px; margin-top: 10px; }
+    .btn-group { display: flex; gap: 8px; margin-top: 12px; }
     .btn-main {
       flex: 1;
       padding: 14px;
@@ -166,21 +208,50 @@
 
   <h2>📱 現場データ入力 ＆ 集計管理</h2>
 
+  <!-- モード切り替え -->
+  <div class="mode-switch">
+    <button id="btnGeneralMode" class="mode-btn active" onclick="switchMode('general')">📄 汎用モード</button>
+    <button id="btnWmsMode" class="mode-btn" onclick="switchMode('wms')">⚡ WMS高速モード</button>
+  </div>
+
   <div class="summary-card">
     <div class="summary-title">現在のトータル数量</div>
     <div class="summary-value" id="totalQty">0</div>
   </div>
 
-  <div class="input-guide-bar">
-    📌 入力順: 品名 ➔ 数量 ➔ 注番
+  <!-- 汎用モード用エリア -->
+  <div id="generalFormArea">
+    <div class="input-guide-bar">
+      📌 入力順: 品名 ➔ 数量 ➔ 注番
+    </div>
+    <label for="inputText">データ入力（カンマ区切り / スペース自動削除）</label>
+    <textarea id="inputText" placeholder="入力例:&#10;01707300, 56, A234556&#10;または内部コード単体: 2600002046"></textarea>
+
+    <div class="option-bar">
+      <input type="checkbox" id="forceString" checked>
+      <label for="forceString" style="display:inline; margin:0; cursor:pointer;">Excel頭ゼロ保持（数字品番の先頭に ' を付与）</label>
+    </div>
   </div>
 
-  <label for="inputText">データ入力（カンマ区切り / スペース自動削除）</label>
-  <textarea id="inputText" placeholder="入力例:&#10;01707300, 56, A234556&#10;または内部コード単体: 2600002046"></textarea>
+  <!-- WMS高速モード用エリア（制御キー固定順） -->
+  <div id="wmsFormArea" style="display:none;">
+    <div class="input-guide-bar">
+      ⚡ WMSキーフロー固定: 品番 ➔ [↓] ➔ [Enter] ➔ 数量 ➔ [Tab×6] ➔ 付属キー1 ➔ 付属キー2 ➔ [Tab]
+    </div>
 
-  <div class="option-bar">
-    <input type="checkbox" id="forceString" checked>
-    <label for="forceString" style="display:inline; margin:0; cursor:pointer;">Excel頭ゼロ保持（数字品番の先頭に ' を付与）</label>
+    <div class="wms-field-group">
+      <label>1. 品番 <span class="wms-seq-badge">➔ 自動 [↓] [Enter]</span></label>
+      <input type="text" id="wmsPName" placeholder="例: 01707300 または 2600002046">
+
+      <label>2. 数量 <span class="wms-seq-badge">➔ 自動 [Tab×6]</span></label>
+      <input type="number" id="wmsQty" placeholder="例: 56">
+
+      <label>3. 付属キー1</label>
+      <input type="text" id="wmsKey1" placeholder="例: 任意テキスト/コード">
+
+      <label>4. 付属キー2 <span class="wms-seq-badge">➔ 自動 [Tab]（次行へ移動）</span></label>
+      <input type="text" id="wmsKey2" placeholder="例: 任意テキスト/コード">
+    </div>
   </div>
 
   <div class="btn-group">
@@ -203,11 +274,37 @@
   <div class="history-list" id="historyList"></div>
 
   <script>
-    const STORAGE_KEY = 'qr_input_history_v7';
+    const STORAGE_KEY = 'qr_input_history_v8';
+    let currentMode = 'general'; // 'general' または 'wms'
+
+    // ASCII 制御文字定義（Tera HW0002用）
+    const DOWN_ARROW = '\x04'; // EOT (Down Arrow)
+    const ENTER_KEY  = '\n';   // Enter
+    const TAB_KEY    = '\t';   // HT (Tab)
 
     window.onload = function() {
       renderHistory();
     };
+
+    function switchMode(mode) {
+      currentMode = mode;
+      const btnGeneral = document.getElementById('btnGeneralMode');
+      const btnWms = document.getElementById('btnWmsMode');
+      const areaGeneral = document.getElementById('generalFormArea');
+      const areaWms = document.getElementById('wmsFormArea');
+
+      if (mode === 'wms') {
+        btnGeneral.classList.remove('active');
+        btnWms.classList.add('active');
+        areaGeneral.style.display = 'none';
+        areaWms.style.display = 'block';
+      } else {
+        btnWms.classList.remove('active');
+        btnGeneral.classList.add('active');
+        areaWms.style.display = 'none';
+        areaGeneral.style.display = 'block';
+      }
+    }
 
     function parseNumber(val) {
       if (!val) return 0;
@@ -216,22 +313,19 @@
       return isNaN(num) ? 0 : num;
     }
 
-    // 単一項目の文字列化（頭ゼロ保護）処理
     function formatValue(val, isForceString) {
       if (!val) return "";
-      // 数字のみかつ「0」から始まる場合は先頭にシングルクォートを自動付加
       if (isForceString && /^\d+$/.test(val) && val.length > 1) {
         return `'${val}`;
       }
       return val;
     }
 
-    // 1行分の成形
-    function parseSingleLine(rawLine, isForceString) {
+    // 汎用モードの1行成形
+    function parseGeneralLine(rawLine, isForceString) {
       const items = rawLine.split(/[,、\t]/).map(i => i.trim().replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, ''));
       if (items.length === 0 || (items.length === 1 && items[0] === "")) return null;
 
-      // 1項目だけ（2600002046 などの単体コード入力）の場合は純粋なコードのみ出力
       if (items.length === 1) {
         const singleVal = formatValue(items[0], isForceString);
         return { formatted: singleVal, qty: 0, pName: items[0], pPo: "" };
@@ -241,73 +335,133 @@
       const qty   = parseNumber(items[1]);
       const pPo   = formatValue(items[2] || "", isForceString);
 
-      // ダブルクォーテーションなしのタブ区切り
-      const formatted = [pName, qty, pPo].join('\t');
-      
+      const formatted = [pName, qty, pPo].join(TAB_KEY);
       return { formatted, qty, pName: items[0], pPo: items[2] || "" };
     }
 
+    // WMSモードの1行成形（制御キー固定結合）
+    function parseWmsData(pName, qtyStr, key1, key2) {
+      const cleanPName = pName.trim();
+      const qtyNum     = parseNumber(qtyStr);
+      const cleanKey1  = key1.trim();
+      const cleanKey2  = key2.trim();
+
+      if (!cleanPName) return null;
+
+      // キーシーケンス結合: 品番 ➔ ↓ ➔ Enter ➔ 数量 ➔ Tab×6 ➔ Key1 ➔ Key2 ➔ Tab
+      const tab6 = TAB_KEY.repeat(6);
+      const formatted = `${cleanPName}${DOWN_ARROW}${ENTER_KEY}${qtyNum}${tab6}${cleanKey1}${cleanKey2}${TAB_KEY}`;
+      const rawSummary = `[WMS] ${cleanPName} / Qty:${qtyNum} / K1:${cleanKey1} / K2:${cleanKey2}`;
+
+      return {
+        formatted,
+        qty: qtyNum,
+        rawSummary,
+        pName: cleanPName,
+        key1: cleanKey1,
+        key2: cleanKey2
+      };
+    }
+
     function processAndSave() {
-      const inputEl = document.getElementById('inputText');
-      const isForceString = document.getElementById('forceString').checked;
-      const rawText = inputEl.value;
-      if (!rawText.trim()) return;
-
-      const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-      if (lines.length === 0) return;
-
       const now = new Date();
       const timeStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
 
-      let formattedLines = [];
-      let lineQtySum = 0;
-      let lastPName = "";
-      let lastPPo = "";
+      if (currentMode === 'wms') {
+        // WMSモード処理
+        const pName = document.getElementById('wmsPName').value;
+        const qtyStr = document.getElementById('wmsQty').value;
+        const key1 = document.getElementById('wmsKey1').value;
+        const key2 = document.getElementById('wmsKey2').value;
 
-      lines.forEach(line => {
-        const parsed = parseSingleLine(line, isForceString);
-        if (parsed) {
-          formattedLines.push(parsed.formatted);
-          lineQtySum += parsed.qty;
-          lastPName = parsed.pName;
-          lastPPo = parsed.pPo;
+        const parsed = parseWmsData(pName, qtyStr, key1, key2);
+        if (!parsed) {
+          alert("品番を入力してください。");
+          return;
         }
-      });
 
-      if (formattedLines.length === 0) return;
+        renderQR(parsed.formatted);
+        document.getElementById('qrStatus').innerText = `WMS高速QR生成完了 (${timeStr})`;
 
-      const finalQrText = formattedLines.join('\n');
-      renderQR(finalQrText);
-      document.getElementById('qrStatus').innerText = `生成完了 (${lines.length}件分 / ${timeStr})`;
+        saveToHistory({
+          mode: 'wms',
+          timestamp: timeStr,
+          raw: parsed.rawSummary,
+          formatted: parsed.formatted,
+          wmsData: { pName: parsed.pName, qty: parsed.qty, key1: parsed.key1, key2: parsed.key2 },
+          count: 1,
+          qty: parsed.qty
+        });
 
-      saveToHistory({
-        timestamp: timeStr,
-        raw: rawText,
-        formatted: finalQrText,
-        count: lines.length,
-        qty: Math.round(lineQtySum * 100) / 100
-      });
-
-      // 複数項目入力時のみ連続入力ダイアログを表示
-      if (lines.length === 1 && !rawText.includes(',') && !rawText.includes('、')) {
-        inputEl.value = "";
-      } else {
-        if (confirm(`同じ品名・注番で複製しますか？\n（品名: ${lastPName} / 注番: ${lastPPo}）`)) {
-          if (lastPPo) {
-            inputEl.value = `${lastPName},,${lastPPo}`;
-            const pos = lastPName.length + 1;
-            setTimeout(() => {
-              inputEl.focus();
-              inputEl.setSelectionRange(pos, pos);
-            }, 50);
-          } else {
-            inputEl.value = `${lastPName},`;
-            setTimeout(() => {
-              inputEl.focus();
-            }, 50);
-          }
+        // 複製・連続入力確認
+        if (confirm(`同じ品番・付属キーで複製しますか？\n（品番: ${parsed.pName}）`)) {
+          document.getElementById('wmsQty').value = "";
+          setTimeout(() => { document.getElementById('wmsQty').focus(); }, 50);
         } else {
+          document.getElementById('wmsPName').value = "";
+          document.getElementById('wmsQty').value = "";
+          document.getElementById('wmsKey1').value = "";
+          document.getElementById('wmsKey2').value = "";
+        }
+
+      } else {
+        // 汎用モード処理
+        const inputEl = document.getElementById('inputText');
+        const isForceString = document.getElementById('forceString').checked;
+        const rawText = inputEl.value;
+        if (!rawText.trim()) return;
+
+        const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length === 0) return;
+
+        let formattedLines = [];
+        let lineQtySum = 0;
+        let lastPName = "";
+        let lastPPo = "";
+
+        lines.forEach(line => {
+          const parsed = parseGeneralLine(line, isForceString);
+          if (parsed) {
+            formattedLines.push(parsed.formatted);
+            lineQtySum += parsed.qty;
+            lastPName = parsed.pName;
+            lastPPo = parsed.pPo;
+          }
+        });
+
+        if (formattedLines.length === 0) return;
+
+        const finalQrText = formattedLines.join(ENTER_KEY);
+        renderQR(finalQrText);
+        document.getElementById('qrStatus').innerText = `生成完了 (${lines.length}件分 / ${timeStr})`;
+
+        saveToHistory({
+          mode: 'general',
+          timestamp: timeStr,
+          raw: rawText,
+          formatted: finalQrText,
+          count: lines.length,
+          qty: Math.round(lineQtySum * 100) / 100
+        });
+
+        if (lines.length === 1 && !rawText.includes(',') && !rawText.includes('、')) {
           inputEl.value = "";
+        } else {
+          if (confirm(`同じ品名・注番で複製しますか？\n（品名: ${lastPName} / 注番: ${lastPPo}）`)) {
+            if (lastPPo) {
+              inputEl.value = `${lastPName},,${lastPPo}`;
+              const pos = lastPName.length + 1;
+              setTimeout(() => {
+                inputEl.focus();
+                inputEl.setSelectionRange(pos, pos);
+              }, 50);
+            } else {
+              inputEl.value = `${lastPName},`;
+              setTimeout(() => { inputEl.focus(); }, 50);
+            }
+          } else {
+            inputEl.value = "";
+          }
         }
       }
     }
@@ -316,37 +470,56 @@
       let history = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
       if (!history[index]) return;
 
-      const isForceString = document.getElementById('forceString').checked;
-      const currentRaw = history[index].raw;
-      const newRaw = prompt("入力内容を修正してください（複数行も可）:", currentRaw);
+      const record = history[index];
 
-      if (newRaw === null) return;
-      if (!newRaw.trim()) {
-        alert("空文字での保存はできません。削除したい場合は「選択削除」を使用してください。");
-        return;
+      if (record.mode === 'wms' && record.wmsData) {
+        // WMSモード履歴の修正（制御キー以外のデータのみ直接編集）
+        const newPName = prompt("品番を編集してください:", record.wmsData.pName);
+        if (newPName === null) return;
+        const newQty = prompt("数量を編集してください:", record.wmsData.qty);
+        if (newQty === null) return;
+        const newKey1 = prompt("付属キー1を編集してください:", record.wmsData.key1);
+        if (newKey1 === null) return;
+        const newKey2 = prompt("付属キー2を編集してください:", record.wmsData.key2);
+        if (newKey2 === null) return;
+
+        const parsed = parseWmsData(newPName, newQty, newKey1, newKey2);
+        if (!parsed) return;
+
+        record.raw = parsed.rawSummary;
+        record.formatted = parsed.formatted;
+        record.qty = parsed.qty;
+        record.wmsData = { pName: parsed.pName, qty: parsed.qty, key1: parsed.key1, key2: parsed.key2 };
+
+      } else {
+        // 汎用モード履歴の修正
+        const isForceString = document.getElementById('forceString').checked;
+        const newRaw = prompt("入力内容を修正してください（複数行も可）:", record.raw);
+        if (newRaw === null || !newRaw.trim()) return;
+
+        const lines = newRaw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        let formattedLines = [];
+        let lineQtySum = 0;
+
+        lines.forEach(line => {
+          const parsed = parseGeneralLine(line, isForceString);
+          if (parsed) {
+            formattedLines.push(parsed.formatted);
+            lineQtySum += parsed.qty;
+          }
+        });
+
+        record.raw = newRaw;
+        record.formatted = formattedLines.join(ENTER_KEY);
+        record.count = lines.length;
+        record.qty = Math.round(lineQtySum * 100) / 100;
       }
 
-      const lines = newRaw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-      let formattedLines = [];
-      let lineQtySum = 0;
-
-      lines.forEach(line => {
-        const parsed = parseSingleLine(line, isForceString);
-        if (parsed) {
-          formattedLines.push(parsed.formatted);
-          lineQtySum += parsed.qty;
-        }
-      });
-
-      history[index].raw = newRaw;
-      history[index].formatted = formattedLines.join('\n');
-      history[index].count = lines.length;
-      history[index].qty = Math.round(lineQtySum * 100) / 100;
-
+      history[index] = record;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
       renderHistory();
       
-      renderQR(history[index].formatted);
+      renderQR(record.formatted);
       document.getElementById('qrStatus').innerText = `履歴を更新・再表示しました`;
     }
 
@@ -367,7 +540,7 @@
         }
       });
 
-      const finalQrText = combinedLines.join('\n');
+      const finalQrText = combinedLines.join(ENTER_KEY);
       renderQR(finalQrText);
       document.getElementById('qrStatus').innerText = `選択履歴のまとめQR生成完了 (${checkboxes.length}件分)`;
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -383,9 +556,7 @@
       if (confirm(`${checkboxes.length} 件の履歴を削除しますか？`)) {
         let history = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
         const indexesToDelete = Array.from(checkboxes).map(cb => parseInt(cb.dataset.index));
-        
         history = history.filter((_, index) => !indexesToDelete.includes(index));
-        
         localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
         renderHistory();
       }
@@ -430,7 +601,7 @@
             <input type="checkbox" class="history-checkbox" data-index="${index}">
             <div class="history-content">
               <div class="history-card-header">
-                <span>[No. ${String(no).padStart(2, '0')}] ${item.count > 1 ? `(${item.count}件一括)` : ''}</span>
+                <span>[No. ${String(no).padStart(2, '0')}] ${item.mode === 'wms' ? '⚡WMS' : '📄汎用'}</span>
                 <span>${item.timestamp}</span>
               </div>
               <div class="history-data">${item.raw.replace(/\n/g, ' / ')}</div>
