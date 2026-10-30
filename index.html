@@ -111,6 +111,8 @@
       font-size: 0.9rem;
       font-weight: bold;
       cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
     }
     .btn-sym:active {
       background-color: var(--accent-green);
@@ -268,24 +270,24 @@
       <input type="number" id="wmsQty" placeholder="数量を入力: 56">
 
       <label>3. ロット番号 <span class="wms-seq-badge">➔ 自動 [Tab×5]</span></label>
-      <input type="text" id="wmsLot" placeholder="例: 26/RTT-026-01" style="text-transform: uppercase;">
+      <input type="text" id="wmsLot" placeholder="例: 26/RTT-026-01" style="text-transform: uppercase;" autocapitalize="characters">
       <div class="symbol-btn-group">
-        <button type="button" class="btn-sym" onclick="insertSymbol('wmsLot', '/')">/</button>
-        <button type="button" class="btn-sym" onclick="insertSymbol('wmsLot', '-')">-</button>
+        <button type="button" class="btn-sym" onmousedown="insertSymbol('wmsLot', '/', event)" ontouchstart="insertSymbol('wmsLot', '/', event)">/</button>
+        <button type="button" class="btn-sym" onmousedown="insertSymbol('wmsLot', '-', event)" ontouchstart="insertSymbol('wmsLot', '-', event)">-</button>
       </div>
 
       <label>4. 付属キー1</label>
-      <input type="text" id="wmsKey1" placeholder="付属キー1を入力" style="text-transform: uppercase;">
+      <input type="text" id="wmsKey1" placeholder="付属キー1を入力" style="text-transform: uppercase;" autocapitalize="characters">
       <div class="symbol-btn-group">
-        <button type="button" class="btn-sym" onclick="insertSymbol('wmsKey1', '/')">/</button>
-        <button type="button" class="btn-sym" onclick="insertSymbol('wmsKey1', '-')">-</button>
+        <button type="button" class="btn-sym" onmousedown="insertSymbol('wmsKey1', '/', event)" ontouchstart="insertSymbol('wmsKey1', '/', event)">/</button>
+        <button type="button" class="btn-sym" onmousedown="insertSymbol('wmsKey1', '-', event)" ontouchstart="insertSymbol('wmsKey1', '-', event)">-</button>
       </div>
 
       <label>5. 付属キー2 <span class="wms-seq-badge">➔ 自動 [Tab]（次行へ移動）</span></label>
-      <input type="text" id="wmsKey2" placeholder="付属キー2を入力" style="text-transform: uppercase;">
+      <input type="text" id="wmsKey2" placeholder="付属キー2を入力" style="text-transform: uppercase;" autocapitalize="characters">
       <div class="symbol-btn-group">
-        <button type="button" class="btn-sym" onclick="insertSymbol('wmsKey2', '/')">/</button>
-        <button type="button" class="btn-sym" onclick="insertSymbol('wmsKey2', '-')">-</button>
+        <button type="button" class="btn-sym" onmousedown="insertSymbol('wmsKey2', '/', event)" ontouchstart="insertSymbol('wmsKey2', '/', event)">/</button>
+        <button type="button" class="btn-sym" onmousedown="insertSymbol('wmsKey2', '-', event)" ontouchstart="insertSymbol('wmsKey2', '-', event)">-</button>
       </div>
     </div>
   </div>
@@ -310,7 +312,7 @@
   <div class="history-list" id="historyList"></div>
 
   <script>
-    const STORAGE_KEY = 'qr_input_history_v11';
+    const STORAGE_KEY = 'qr_input_history_v12';
     let currentMode = 'general';
 
     // ASCII 制御文字定義（Tera HW0002用）
@@ -322,15 +324,16 @@
       renderHistory();
     };
 
-    // ワンタップでカーソル位置に記号（/ や -）を挿入
-    function insertSymbol(elementId, symbol) {
+    // フォーカスとキーボードの大文字モードを維持して記号挿入
+    function insertSymbol(elementId, symbol, event) {
+      if (event) event.preventDefault();
+
       const input = document.getElementById(elementId);
       const start = input.selectionStart;
       const end = input.selectionEnd;
       const text = input.value;
 
       input.value = text.substring(0, start) + symbol + text.substring(end);
-      input.focus();
       input.setSelectionRange(start + 1, start + 1);
     }
 
@@ -386,7 +389,6 @@
       return { formatted, qty, pName: items[0], pPo: items[2] || "" };
     }
 
-    // WMSモードの1行成形（英字自動大文字化 + 制御キー固定結合）
     function parseWmsData(pName, qtyStr, lotStr, key1, key2) {
       const cleanPName = pName.trim();
       const qtyNum     = parseNumber(qtyStr);
@@ -428,7 +430,6 @@
           return;
         }
 
-        // 入力フォームの値を自動大文字に更新表示
         document.getElementById('wmsLot').value = parsed.lot;
         document.getElementById('wmsKey1').value = parsed.key1;
         document.getElementById('wmsKey2').value = parsed.key2;
