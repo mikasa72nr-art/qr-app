@@ -7,15 +7,15 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     :root {
-      --card-bg: rgba(30, 20, 35, 0.75);
-      --card-border: rgba(255, 140, 60, 0.25);
+      --card-bg: rgba(20, 15, 30, 0.72);
+      --card-border: rgba(255, 183, 77, 0.3);
       --accent-green: #00E676;
       --accent-orange: #FF6D00;
       --accent-blue: #29B6F6;
       --accent-yellow: #FFD600;
       --text-main: #FFFFFF;
-      --text-sub: #DDCCDD;
-      --border-color: rgba(255, 255, 255, 0.15);
+      --text-sub: #FFE0B2;
+      --border-color: rgba(255, 255, 255, 0.2);
     }
     
     body {
@@ -25,34 +25,38 @@
       padding-bottom: 60px;
       color: var(--text-main);
       min-height: 100vh;
-      /* 自然のきれいな夕日グラデーション背景 */
-      background: linear-gradient(180deg, #1A0B2E 0%, #4C1C5C 25%, #962856 50%, #C65135 75%, #D9822B 100%) fixed;
+      
+      /* 夕日の海の画像背景設定 */
+      background-image: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80');
       background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      background-repeat: no-repeat;
     }
 
-    h2 { font-size: 1.1rem; color: #FFB74D; margin: 0 0 10px 0; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+    h2 { font-size: 1.1rem; color: #FFB74D; margin: 0 0 10px 0; text-shadow: 0 2px 6px rgba(0,0,0,0.8); }
     
     .summary-card {
       background-color: var(--card-bg);
       border: 1px solid var(--card-border);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       border-radius: 12px;
       padding: 14px;
       margin-bottom: 12px;
       text-align: center;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
     }
     .summary-title { font-size: 0.8rem; color: var(--text-sub); margin-bottom: 4px; }
-    .summary-value { font-size: 2rem; font-weight: bold; color: var(--accent-yellow); text-shadow: 0 0 10px rgba(255,214,0,0.3); }
+    .summary-value { font-size: 2rem; font-weight: bold; color: var(--accent-yellow); text-shadow: 0 0 10px rgba(255,214,0,0.4); }
 
     /* モード切り替えタブ */
     .mode-switch {
       display: flex;
       background-color: var(--card-bg);
       border: 1px solid var(--card-border);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       border-radius: 10px;
       padding: 4px;
       margin-bottom: 12px;
@@ -70,18 +74,18 @@
       cursor: pointer;
     }
     .mode-btn.active {
-      background-color: rgba(255, 109, 0, 0.3);
-      color: #FFB74D;
-      border: 1px solid rgba(255, 183, 77, 0.4);
+      background-color: rgba(255, 109, 0, 0.4);
+      color: #FFF;
+      border: 1px solid rgba(255, 183, 77, 0.5);
     }
 
-    label { font-size: 0.85rem; color: var(--text-sub); display: block; margin-top: 8px; }
+    label { font-size: 0.85rem; color: var(--text-sub); display: block; margin-top: 8px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
     textarea, input[type="text"], input[type="number"] {
       width: 100%;
       font-size: 0.95rem;
       padding: 10px;
       box-sizing: border-box;
-      background-color: rgba(15, 10, 20, 0.7);
+      background-color: rgba(10, 5, 15, 0.75);
       color: var(--text-main);
       border: 1px solid var(--border-color);
       border-radius: 8px;
@@ -93,8 +97,8 @@
     .wms-field-group {
       background-color: var(--card-bg);
       border: 1px solid var(--card-border);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       border-radius: 10px;
       padding: 12px;
       margin-top: 8px;
@@ -102,7 +106,7 @@
     .wms-seq-badge {
       font-size: 0.75rem;
       color: var(--accent-yellow);
-      background-color: rgba(255, 214, 0, 0.15);
+      background-color: rgba(255, 214, 0, 0.2);
       padding: 2px 6px;
       border-radius: 4px;
       margin-left: 6px;
@@ -115,9 +119,9 @@
       margin-top: 4px;
     }
     .btn-sym {
-      background-color: rgba(255, 109, 0, 0.2);
+      background-color: rgba(255, 109, 0, 0.3);
       color: #FFB74D;
-      border: 1px solid rgba(255, 183, 77, 0.3);
+      border: 1px solid rgba(255, 183, 77, 0.4);
       border-radius: 6px;
       padding: 6px 14px;
       font-size: 0.95rem;
@@ -132,7 +136,7 @@
     }
 
     .input-guide-bar {
-      background-color: rgba(40, 20, 50, 0.7);
+      background-color: rgba(20, 10, 30, 0.8);
       border: 1px solid var(--card-border);
       border-radius: 8px;
       padding: 8px 10px;
@@ -149,6 +153,7 @@
       display: flex;
       align-items: center;
       gap: 6px;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
     }
 
     .btn-group { display: flex; gap: 8px; margin-top: 12px; }
@@ -162,7 +167,7 @@
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      box-shadow: 0 4px 10px rgba(255, 109, 0, 0.4);
+      box-shadow: 0 4px 15px rgba(255, 109, 0, 0.5);
     }
     .btn-main:active { opacity: 0.85; }
 
@@ -177,7 +182,7 @@
       padding: 20px;
       border-radius: 12px;
       display: inline-block;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      box-shadow: 0 6px 25px rgba(0,0,0,0.6);
     }
     #qrcode img, #qrcode canvas {
       width: 250px !important;
@@ -185,7 +190,7 @@
       display: block;
       image-rendering: pixelated;
     }
-    .qr-info { font-size: 0.8rem; color: var(--text-sub); margin-top: 8px; text-align: center; }
+    .qr-info { font-size: 0.8rem; color: #FFF; margin-top: 8px; text-align: center; text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
 
     .history-header {
       display: flex;
@@ -211,8 +216,8 @@
     .history-card {
       background-color: var(--card-bg);
       border: 1px solid var(--card-border);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       padding: 10px;
       border-radius: 8px;
       margin-bottom: 8px;
@@ -319,7 +324,7 @@
   </div>
 
   <div class="history-header">
-    <h3 style="font-size: 0.95rem; margin:0;">📋 履歴（<span id="historyCount">0件</span>）</h3>
+    <h3 style="font-size: 0.95rem; margin:0; text-shadow:0 1px 3px rgba(0,0,0,0.8);">📋 履歴（<span id="historyCount">0件</span>）</h3>
     <div style="display: flex; gap: 4px;">
       <button class="btn-action btn-combine" onclick="generateCombinedQR()">まとめQR</button>
       <button class="btn-action btn-delete-sub" onclick="deleteSelectedHistory()">選択削除</button>
@@ -329,7 +334,7 @@
   <div class="history-list" id="historyList"></div>
 
   <script>
-    const STORAGE_KEY = 'qr_input_history_v13';
+    const STORAGE_KEY = 'qr_input_history_v14';
     let currentMode = 'general';
 
     const DOWN_ARROW = '\x04'; // EOT (Down Arrow)
