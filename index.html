@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>現場QR入力 ＆ 集計管理アプリ</title>
+  <title>現場QR入力 ＆ 物流ABC管理アプリ</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     :root {
@@ -92,7 +92,7 @@
       border: 1px solid var(--border-color);
       color: var(--text-main);
       font-weight: bold;
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       border-radius: 8px;
       text-align: left;
       cursor: pointer;
@@ -112,7 +112,6 @@
     }
     .menu-overlay.open { display: block; }
 
-    /* 全画面背景鑑賞オーバーレイ */
     .view-sea-prompt {
       display: none;
       position: fixed;
@@ -156,7 +155,7 @@
     textarea { height: 90px; resize: vertical; }
     textarea:focus, input:focus { outline: none; border-color: var(--accent-orange); }
 
-    .wms-field-group {
+    .wms-field-group, .abc-card {
       background-color: var(--card-bg);
       border: 1px solid var(--card-border);
       backdrop-filter: blur(12px);
@@ -191,10 +190,7 @@
       user-select: none;
       -webkit-user-select: none;
     }
-    .btn-sym:active {
-      background-color: var(--accent-orange);
-      color: #FFF;
-    }
+    .btn-sym:active { background-color: var(--accent-orange); color: #FFF; }
 
     .input-guide-bar {
       background-color: rgba(20, 10, 30, 0.8);
@@ -231,6 +227,36 @@
       box-shadow: 0 4px 15px rgba(255, 109, 0, 0.5);
     }
     .btn-main:active { opacity: 0.85; }
+
+    /* ABC計算スタイル */
+    .abc-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 6px;
+    }
+    .abc-row input { margin-top: 0; }
+    .abc-res-box {
+      background: rgba(0, 230, 118, 0.15);
+      border: 1px solid var(--accent-green);
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 12px;
+    }
+    .progress-bg {
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      height: 8px;
+      width: 100%;
+      margin-top: 4px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      background: var(--accent-orange);
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
 
     .qr-wrapper {
       display: flex;
@@ -323,33 +349,32 @@
 
 <body onclick="handleGlobalClick(event)">
 
-  <!-- サイドメニューオーバーレイ -->
   <div id="menuOverlay" class="menu-overlay" onclick="toggleMenu(false)"></div>
 
-  <!-- サイドスライドメニュー -->
   <div id="sideMenu" class="side-menu">
     <div class="side-menu-header">
       <span style="font-weight:bold; color:#FFB74D;">⚙️ アプリ設定・モード</span>
       <button class="btn-close-menu" onclick="toggleMenu(false)">✕</button>
     </div>
 
-    <label style="margin-top:0; margin-bottom:6px;">入力モード選択</label>
-    <button id="menuBtnGeneral" class="menu-item-btn active" onclick="switchMode('general')">📄 汎用モード</button>
-    <button id="menuBtnWms" class="menu-item-btn" onclick="switchMode('wms')">⚡ WMS高速モード</button>
+    <label style="margin-top:0; margin-bottom:6px;">モード選択</label>
+    <button id="menuBtnGeneral" class="menu-item-btn active" onclick="switchMode('general')">📄 汎用QRモード</button>
+    <button id="menuBtnWms" class="menu-item-btn" onclick="switchMode('wms')">⚡ WMS高速QRモード</button>
+    <button id="menuBtnAbc" class="menu-item-btn" onclick="switchMode('abc')">📊 物流ABC計算モード</button>
 
     <hr style="border-color: var(--border-color); margin: 20px 0;">
 
     <button class="menu-item-btn" style="background: rgba(0,230,118,0.2); border-color: var(--accent-green); color: var(--accent-green);" onclick="hideUiAndShowSea()">🌅 画面を閉じて海を見る</button>
   </div>
 
-  <!-- メインUIラップ -->
   <div id="mainUi">
     <div class="app-header">
       <button class="menu-toggle-btn" onclick="toggleMenu(true)">☰</button>
-      <h2>🌅 現場QR入力 ＆ 集計管理</h2>
+      <h2 id="appHeaderTitle">🌅 現場QR入力 ＆ 集計管理</h2>
     </div>
 
-    <div class="summary-card">
+    <!-- 汎用・WMSモード用サマリー -->
+    <div id="qrSummaryArea" class="summary-card">
       <div class="summary-title">現在のトータル数量</div>
       <div class="summary-value" id="totalQty">0</div>
     </div>
@@ -368,7 +393,7 @@
       </div>
     </div>
 
-    <!-- WMS高速モード用エリア（制御キー固定順） -->
+    <!-- WMS高速モード用エリア -->
     <div id="wmsFormArea" style="display:none;">
       <div class="input-guide-bar">
         ⚡ WMSキーフロー固定: 品番 ➔ [↓] ➔ [Enter] ➔ 数量 ➔ ロット ➔ [Tab×5] ➔ 付属キー1 ➔ 付属キー2 ➔ [Tab]
@@ -404,30 +429,88 @@
       </div>
     </div>
 
-    <div class="btn-group">
-      <button class="btn-main" onclick="processAndSave()">保存してQR表示</button>
-    </div>
+    <!-- 物流ABC計算モードエリア -->
+    <div id="abcFormArea" style="display:none;">
+      <div class="input-guide-bar">
+        📊 物流ABC（活動別原価計算）作業別コスト算出表
+      </div>
 
-    <div class="qr-wrapper">
-      <div id="qrcode"></div>
-      <div class="qr-info" id="qrStatus">データを入力して「保存してQR表示」を押してください</div>
-    </div>
+      <div class="abc-card">
+        <label>基本条件設定</label>
+        <div class="abc-row">
+          <span style="font-size:0.8rem; width:110px;">作業時給 (円):</span>
+          <input type="number" id="abcHourlyWage" value="1200" oninput="calculateABC()">
+        </div>
+        <div class="abc-row">
+          <span style="font-size:0.8rem; width:110px;">月間出荷数 (個):</span>
+          <input type="number" id="abcTotalItems" value="5000" oninput="calculateABC()">
+        </div>
 
-    <div class="history-header">
-      <h3 style="font-size: 0.95rem; margin:0; text-shadow:0 1px 3px rgba(0,0,0,0.8);">📋 履歴（<span id="historyCount">0件</span>）</h3>
-      <div style="display: flex; gap: 4px;">
-        <button class="btn-action btn-combine" onclick="generateCombinedQR()">まとめQR</button>
-        <button class="btn-action btn-delete-sub" onclick="deleteSelectedHistory()">選択削除</button>
-        <button class="btn-action btn-clear" onclick="clearHistory()">全削除</button>
+        <label style="margin-top:15px;">作業別 月間所要時間 (時間/月)</label>
+        
+        <div style="margin-top:8px;">
+          <div style="font-size:0.8rem; color:#FFB74D;">1. 入荷・検品作業</div>
+          <input type="number" id="abcTimeInbound" value="40" oninput="calculateABC()" placeholder="時間/月">
+          <div class="progress-bg"><div id="barInbound" class="progress-bar"></div></div>
+        </div>
+
+        <div style="margin-top:8px;">
+          <div style="font-size:0.8rem; color:#FFB74D;">2. 保管・棚管理作業</div>
+          <input type="number" id="abcTimeStorage" value="20" oninput="calculateABC()" placeholder="時間/月">
+          <div class="progress-bg"><div id="barStorage" class="progress-bar"></div></div>
+        </div>
+
+        <div style="margin-top:8px;">
+          <div style="font-size:0.8rem; color:#FFB74D;">3. ピッキング作業</div>
+          <input type="number" id="abcTimePicking" value="80" oninput="calculateABC()" placeholder="時間/月">
+          <div class="progress-bg"><div id="barPicking" class="progress-bar"></div></div>
+        </div>
+
+        <div style="margin-top:8px;">
+          <div style="font-size:0.8rem; color:#FFB74D;">4. 梱包・出荷作業</div>
+          <input type="number" id="abcTimePacking" value="60" oninput="calculateABC()" placeholder="時間/月">
+          <div class="progress-bg"><div id="barPacking" class="progress-bar"></div></div>
+        </div>
+
+        <!-- 試算結果エリア -->
+        <div class="abc-res-box">
+          <div style="font-size:0.8rem; color:var(--text-sub);">月間総作業人件費</div>
+          <div id="abcTotalCost" style="font-size:1.6rem; font-weight:bold; color:var(--accent-yellow);">0 円</div>
+          <hr style="border-color:rgba(255,255,255,0.1); margin:8px 0;">
+          <div style="font-size:0.8rem; color:var(--text-sub);">出荷1個あたりの平均物流作業原価</div>
+          <div id="abcCostPerItem" style="font-size:1.8rem; font-weight:bold; color:var(--accent-green);">0 円 / 個</div>
+        </div>
       </div>
     </div>
-    <div class="history-list" id="historyList"></div>
+
+    <!-- QR表示・ボタン群（QR用モード時のみ） -->
+    <div id="qrActionArea">
+      <div class="btn-group">
+        <button class="btn-main" onclick="processAndSave()">保存してQR表示</button>
+      </div>
+
+      <div class="qr-wrapper">
+        <div id="qrcode"></div>
+        <div class="qr-info" id="qrStatus">データを入力して「保存してQR表示」を押してください</div>
+      </div>
+
+      <div class="history-header">
+        <h3 style="font-size: 0.95rem; margin:0; text-shadow:0 1px 3px rgba(0,0,0,0.8);">📋 履歴（<span id="historyCount">0件</span>）</h3>
+        <div style="display: flex; gap: 4px;">
+          <button class="btn-action btn-combine" onclick="generateCombinedQR()">まとめQR</button>
+          <button class="btn-action btn-delete-sub" onclick="deleteSelectedHistory()">選択削除</button>
+          <button class="btn-action btn-clear" onclick="clearHistory()">全削除</button>
+        </div>
+      </div>
+      <div class="history-list" id="historyList"></div>
+    </div>
+
   </div>
 
-  <div id="viewSeaPrompt" class="view-sea-prompt">画面をタップするとメニュー</div>
+  <div id="viewSeaPrompt" class="view-sea-prompt">画面をタップするとメニューに戻ります</div>
 
   <script>
-    const STORAGE_KEY = 'qr_input_history_v17';
+    const STORAGE_KEY = 'qr_input_history_v18';
     let currentMode = 'general';
     let isSeaOnlyMode = false;
 
@@ -437,6 +520,7 @@
 
     window.onload = function() {
       renderHistory();
+      calculateABC();
     };
 
     function toggleMenu(open) {
@@ -455,24 +539,68 @@
       currentMode = mode;
       const btnGeneral = document.getElementById('menuBtnGeneral');
       const btnWms = document.getElementById('menuBtnWms');
+      const btnAbc = document.getElementById('menuBtnAbc');
+
       const areaGeneral = document.getElementById('generalFormArea');
       const areaWms = document.getElementById('wmsFormArea');
+      const areaAbc = document.getElementById('abcFormArea');
+      const qrSummaryArea = document.getElementById('qrSummaryArea');
+      const qrActionArea = document.getElementById('qrActionArea');
+
+      btnGeneral.classList.remove('active');
+      btnWms.classList.remove('active');
+      btnAbc.classList.remove('active');
+
+      areaGeneral.style.display = 'none';
+      areaWms.style.display = 'none';
+      areaAbc.style.display = 'none';
 
       if (mode === 'wms') {
-        btnGeneral.classList.remove('active');
         btnWms.classList.add('active');
-        areaGeneral.style.display = 'none';
         areaWms.style.display = 'block';
+        qrSummaryArea.style.display = 'block';
+        qrActionArea.style.display = 'block';
+      } else if (mode === 'abc') {
+        btnAbc.classList.add('active');
+        areaAbc.style.display = 'block';
+        qrSummaryArea.style.display = 'none';
+        qrActionArea.style.display = 'none';
+        calculateABC();
       } else {
-        btnWms.classList.remove('active');
         btnGeneral.classList.add('active');
-        areaWms.style.display = 'none';
         areaGeneral.style.display = 'block';
+        qrSummaryArea.style.display = 'block';
+        qrActionArea.style.display = 'block';
       }
       toggleMenu(false);
     }
 
-    // UI非表示・夕日の海のみ表示
+    // 物流ABC計算処理
+    function calculateABC() {
+      const hourlyWage = parseNumber(document.getElementById('abcHourlyWage').value);
+      const totalItems = parseNumber(document.getElementById('abcTotalItems').value);
+
+      const tInbound  = parseNumber(document.getElementById('abcTimeInbound').value);
+      const tStorage  = parseNumber(document.getElementById('abcTimeStorage').value);
+      const tPicking  = parseNumber(document.getElementById('abcTimePicking').value);
+      const tPacking  = parseNumber(document.getElementById('abcTimePacking').value);
+
+      const totalHours = tInbound + tStorage + tPicking + tPacking;
+      const totalCost = totalHours * hourlyWage;
+      const costPerItem = totalItems > 0 ? (totalCost / totalItems) : 0;
+
+      document.getElementById('abcTotalCost').innerText = `${Math.round(totalCost).toLocaleString()} 円`;
+      document.getElementById('abcCostPerItem').innerText = `${(Math.round(costPerItem * 100) / 100).toLocaleString()} 円 / 個`;
+
+      // プロポーションバー（割合）の反映
+      if (totalHours > 0) {
+        document.getElementById('barInbound').style.width = `${(tInbound / totalHours) * 100}%`;
+        document.getElementById('barStorage').style.width = `${(tStorage / totalHours) * 100}%`;
+        document.getElementById('barPicking').style.width = `${(tPicking / totalHours) * 100}%`;
+        document.getElementById('barPacking').style.width = `${(tPacking / totalHours) * 100}%`;
+      }
+    }
+
     function hideUiAndShowSea() {
       toggleMenu(false);
       document.getElementById('mainUi').style.display = 'none';
