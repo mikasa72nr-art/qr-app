@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>現場QR入力 ＆ 集計管理アプリ</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- OCR文字解析用ライブラリ -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     :root {
       --card-bg: rgba(20, 15, 30, 0.72);
@@ -146,6 +148,68 @@
       font-weight: bold;
     }
 
+    .btn-camera {
+      width: 100%;
+      padding: 12px;
+      background-color: rgba(41, 182, 246, 0.3);
+      color: #81D4FA;
+      border: 1px solid rgba(41, 182, 246, 0.5);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+    .btn-camera:active { background-color: var(--accent-blue); color: #000; }
+
+    /* カメラ撮影モーダル */
+    .camera-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background-color: rgba(0, 0, 0, 0.9);
+      z-index: 1000;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 15px;
+      box-sizing: border-box;
+    }
+    .camera-video {
+      width: 100%;
+      max-width: 400px;
+      height: 250px;
+      object-fit: cover;
+      border: 2px solid var(--accent-blue);
+      border-radius: 8px;
+    }
+    .camera-controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+      width: 100%;
+      max-width: 400px;
+    }
+    .btn-cap {
+      flex: 1;
+      padding: 12px;
+      background-color: var(--accent-green);
+      color: #000;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .btn-close-cam {
+      padding: 12px;
+      background-color: #D32F2F;
+      color: #FFF;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
     .option-bar {
       margin-top: 8px;
       font-size: 0.85rem;
@@ -264,6 +328,8 @@
     <div class="summary-value" id="totalQty">0</div>
   </div>
 
+  <button class="btn-camera" onclick="startCamera()">📷 カメラでラベルを文字読み取り（OCR）</button>
+
   <!-- 汎用モード用エリア -->
   <div id="generalFormArea">
     <div class="input-guide-bar">
@@ -318,6 +384,18 @@
     <button class="btn-main" onclick="processAndSave()">保存してQR表示</button>
   </div>
 
+  <!-- カメラ撮影画面モーダル -->
+  <div id="cameraModal" class="camera-modal">
+    <div style="color:#FFF; margin-bottom:8px; font-size:0.9rem;">枠内にラベル文字を合わせて撮影してください</div>
+    <video id="cameraVideo" class="camera-video" autoplay playsinline></video>
+    <canvas id="cameraCanvas" style="display:none;"></canvas>
+    <div id="ocrStatus" style="color:var(--accent-yellow); margin-top:8px; font-size:0.85rem;"></div>
+    <div class="camera-controls">
+      <button class="btn-cap" onclick="captureAndOCR()">撮影して文字認識</button>
+      <button class="btn-close-cam" onclick="stopCamera()">閉じる</button>
+    </div>
+  </div>
+
   <div class="qr-wrapper">
     <div id="qrcode"></div>
     <div class="qr-info" id="qrStatus">データを入力して「保存してQR表示」を押してください</div>
@@ -334,8 +412,9 @@
   <div class="history-list" id="historyList"></div>
 
   <script>
-    const STORAGE_KEY = 'qr_input_history_v14';
+    const STORAGE_KEY = 'qr_input_history_v15';
     let currentMode = 'general';
+    let videoStream = null;
 
     const DOWN_ARROW = '\x04'; // EOT (Down Arrow)
     const ENTER_KEY  = '\n';   // Enter
@@ -344,6 +423,83 @@
     window.onload = function() {
       renderHistory();
     };
+
+    // カメラ起動処理
+    async function startCamera() {
+      const modal = document.getElementById('cameraModal');
+      const video = document.getElementById('cameraVideo');
+      const status = document.getElementById('ocrStatus');
+      status.innerText = "";
+
+      try {
+        videoStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { exact: "environment" } } // 背面カメラ優先
+        });
+      } catch (err) {
+        try {
+          videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        } catch (e) {
+          alert("カメラの起動に失敗しました。カメラのアクセス許可を確認してください。");
+          return;
+        }
+      }
+
+      video.srcObject = videoStream;
+      modal.style.display = 'flex';
+    }
+
+    function stopCamera() {
+      const modal = document.getElementById('cameraModal');
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+        videoStream = null;
+      }
+      modal.style.display = 'none';
+    }
+
+    // 撮影＆OCR文字解析実行
+    async function captureAndOCR() {
+      const video = document.getElementById('cameraVideo');
+      const canvas = document.getElementById('cameraCanvas');
+      const status = document.getElementById('ocrStatus');
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      status.innerText = "⏳ 文字を解析中... お待ちください";
+
+      try {
+        const worker = await Tesseract.createWorker('eng+jpn');
+        const ret = await worker.recognize(canvas);
+        await worker.terminate();
+
+        const recognizedText = ret.data.text.trim().replace(/\s+/g, ' ');
+        if (!recognizedText) {
+          status.innerText = "❌ 文字を認識できませんでした。もう一度撮影してください。";
+          return;
+        }
+
+        // 解析テキストを入力欄へセット
+        if (currentMode === 'wms') {
+          const pNameInput = document.getElementById('wmsPName');
+          if (!pNameInput.value) {
+            pNameInput.value = recognizedText;
+          } else {
+            document.getElementById('wmsLot').value = recognizedText.toUpperCase();
+          }
+        } else {
+          document.getElementById('inputText').value = recognizedText;
+        }
+
+        alert(`読み取り完了:\n「${recognizedText}」\nを入力欄へセットしました。`);
+        stopCamera();
+
+      } catch (e) {
+        status.innerText = "エラー: 文字解析に失敗しました。";
+      }
+    }
 
     function insertSymbol(elementId, symbol, event) {
       if (event) event.preventDefault();
