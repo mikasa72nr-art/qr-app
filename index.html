@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>現場QR入力 ＆ 物流ABC管理アプリ</title>
+  <title>現場QR入力 ＆ 工程時間管理アプリ</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     :root {
@@ -32,7 +32,6 @@
       background-repeat: no-repeat;
     }
 
-    /* ヘッダー＆ハンバーガーメニュー */
     .app-header {
       display: flex;
       align-items: center;
@@ -53,7 +52,6 @@
 
     h2 { font-size: 1.1rem; color: #FFB74D; margin: 0; text-shadow: 0 2px 6px rgba(0,0,0,0.8); }
 
-    /* サイドスライドメニュー */
     .side-menu {
       position: fixed;
       top: 0; left: -280px; width: 260px; height: 100%;
@@ -228,7 +226,6 @@
     }
     .btn-main:active { opacity: 0.85; }
 
-    /* ABC計算スタイル */
     .abc-row {
       display: flex;
       gap: 8px;
@@ -240,22 +237,8 @@
       background: rgba(0, 230, 118, 0.15);
       border: 1px solid var(--accent-green);
       border-radius: 8px;
-      padding: 10px;
-      margin-top: 12px;
-    }
-    .progress-bg {
-      background: rgba(255,255,255,0.1);
-      border-radius: 4px;
-      height: 8px;
-      width: 100%;
-      margin-top: 4px;
-      overflow: hidden;
-    }
-    .progress-bar {
-      background: var(--accent-orange);
-      height: 100%;
-      width: 0%;
-      transition: width 0.3s ease;
+      padding: 12px;
+      margin-top: 15px;
     }
 
     .qr-wrapper {
@@ -360,7 +343,7 @@
     <label style="margin-top:0; margin-bottom:6px;">モード選択</label>
     <button id="menuBtnGeneral" class="menu-item-btn active" onclick="switchMode('general')">📄 汎用QRモード</button>
     <button id="menuBtnWms" class="menu-item-btn" onclick="switchMode('wms')">⚡ WMS高速QRモード</button>
-    <button id="menuBtnAbc" class="menu-item-btn" onclick="switchMode('abc')">📊 物流ABC計算モード</button>
+    <button id="menuBtnAbc" class="menu-item-btn" onclick="switchMode('abc')">⏱️ 1工程時間計測モード</button>
 
     <hr style="border-color: var(--border-color); margin: 20px 0;">
 
@@ -373,7 +356,6 @@
       <h2 id="appHeaderTitle">🌅 現場QR入力 ＆ 集計管理</h2>
     </div>
 
-    <!-- 汎用・WMSモード用サマリー -->
     <div id="qrSummaryArea" class="summary-card">
       <div class="summary-title">現在のトータル数量</div>
       <div class="summary-value" id="totalQty">0</div>
@@ -396,11 +378,19 @@
     <!-- WMS高速モード用エリア -->
     <div id="wmsFormArea" style="display:none;">
       <div class="input-guide-bar">
-        ⚡ WMSキーフロー固定: 品番 ➔ [↓] ➔ [Enter] ➔ 数量 ➔ ロット ➔ [Tab×5] ➔ 付属キー1 ➔ 付属キー2 ➔ [Tab]
+        ⚡ WMSキーフロー: 品番 ➔ 数量 ➔ ロット ➔ 付属キー1 ➔ 付属キー2
+      </div>
+
+      <!-- 送信方式切り替えトグル -->
+      <div class="option-bar" style="background:rgba(0,0,0,0.3); padding:8px; border-radius:6px; margin-top:8px;">
+        <label style="margin:0; font-size:0.8rem; color:#FFB74D; display:flex; align-items:center; gap:6px; cursor:pointer;">
+          <input type="checkbox" id="wmsUseStandardKeys" onchange="updateWmsGuide()">
+          <span>スキャナーが↓キー非対応（Tab/Enterのみで送る互換モード）</span>
+        </label>
       </div>
 
       <div class="wms-field-group">
-        <label>1. 品番 <span class="wms-seq-badge">➔ 自動 [↓] [Enter]</span></label>
+        <label>1. 品番 <span class="wms-seq-badge" id="badgePName">➔ 自動 [↓] [Enter]</span></label>
         <input type="text" id="wmsPName" placeholder="コード番号: 01707300 または単体コード: 2600002046">
 
         <label>2. 数量</label>
@@ -429,61 +419,54 @@
       </div>
     </div>
 
-    <!-- 物流ABC計算モードエリア -->
+    <!-- 1工程時間計測エリア -->
     <div id="abcFormArea" style="display:none;">
       <div class="input-guide-bar">
-        📊 物流ABC（活動別原価計算）作業別コスト算出表
+        ⏱️ 各工程にかかった作業所要時間（分）
       </div>
 
       <div class="abc-card">
-        <label>基本条件設定</label>
-        <div class="abc-row">
-          <span style="font-size:0.8rem; width:110px;">作業時給 (円):</span>
-          <input type="number" id="abcHourlyWage" value="1200" oninput="calculateABC()">
-        </div>
-        <div class="abc-row">
-          <span style="font-size:0.8rem; width:110px;">月間出荷数 (個):</span>
-          <input type="number" id="abcTotalItems" value="5000" oninput="calculateABC()">
+        <div style="margin-top:6px;">
+          <div style="font-size:0.85rem; color:#FFB74D;">1. 入荷・検品作業</div>
+          <div class="abc-row">
+            <input type="number" id="abcTimeInbound" value="15" oninput="calculateABC()" placeholder="分">
+            <span style="font-size:0.85rem;">分</span>
+          </div>
         </div>
 
-        <label style="margin-top:15px;">作業別 月間所要時間 (時間/月)</label>
-        
-        <div style="margin-top:8px;">
-          <div style="font-size:0.8rem; color:#FFB74D;">1. 入荷・検品作業</div>
-          <input type="number" id="abcTimeInbound" value="40" oninput="calculateABC()" placeholder="時間/月">
-          <div class="progress-bg"><div id="barInbound" class="progress-bar"></div></div>
+        <div style="margin-top:12px;">
+          <div style="font-size:0.85rem; color:#FFB74D;">2. 保管・棚管理作業</div>
+          <div class="abc-row">
+            <input type="number" id="abcTimeStorage" value="10" oninput="calculateABC()" placeholder="分">
+            <span style="font-size:0.85rem;">分</span>
+          </div>
         </div>
 
-        <div style="margin-top:8px;">
-          <div style="font-size:0.8rem; color:#FFB74D;">2. 保管・棚管理作業</div>
-          <input type="number" id="abcTimeStorage" value="20" oninput="calculateABC()" placeholder="時間/月">
-          <div class="progress-bg"><div id="barStorage" class="progress-bar"></div></div>
+        <div style="margin-top:12px;">
+          <div style="font-size:0.85rem; color:#FFB74D;">3. ピッキング作業</div>
+          <div class="abc-row">
+            <input type="number" id="abcTimePicking" value="20" oninput="calculateABC()" placeholder="分">
+            <span style="font-size:0.85rem;">分</span>
+          </div>
         </div>
 
-        <div style="margin-top:8px;">
-          <div style="font-size:0.8rem; color:#FFB74D;">3. ピッキング作業</div>
-          <input type="number" id="abcTimePicking" value="80" oninput="calculateABC()" placeholder="時間/月">
-          <div class="progress-bg"><div id="barPicking" class="progress-bar"></div></div>
+        <div style="margin-top:12px;">
+          <div style="font-size:0.85rem; color:#FFB74D;">4. 梱包・出荷作業</div>
+          <div class="abc-row">
+            <input type="number" id="abcTimePacking" value="15" oninput="calculateABC()" placeholder="分">
+            <span style="font-size:0.85rem;">分</span>
+          </div>
         </div>
 
-        <div style="margin-top:8px;">
-          <div style="font-size:0.8rem; color:#FFB74D;">4. 梱包・出荷作業</div>
-          <input type="number" id="abcTimePacking" value="60" oninput="calculateABC()" placeholder="時間/月">
-          <div class="progress-bg"><div id="barPacking" class="progress-bar"></div></div>
-        </div>
-
-        <!-- 試算結果エリア -->
         <div class="abc-res-box">
-          <div style="font-size:0.8rem; color:var(--text-sub);">月間総作業人件費</div>
-          <div id="abcTotalCost" style="font-size:1.6rem; font-weight:bold; color:var(--accent-yellow);">0 円</div>
-          <hr style="border-color:rgba(255,255,255,0.1); margin:8px 0;">
-          <div style="font-size:0.8rem; color:var(--text-sub);">出荷1個あたりの平均物流作業原価</div>
-          <div id="abcCostPerItem" style="font-size:1.8rem; font-weight:bold; color:var(--accent-green);">0 円 / 個</div>
+          <div style="font-size:0.8rem; color:var(--text-sub);">合計所要時間</div>
+          <div id="abcTotalMinutes" style="font-size:1.8rem; font-weight:bold; color:var(--accent-green);">0 分</div>
+          <div id="abcTotalHours" style="font-size:0.9rem; color:var(--accent-yellow); margin-top:2px;">（0時間 0分）</div>
         </div>
       </div>
     </div>
 
-    <!-- QR表示・ボタン群（QR用モード時のみ） -->
+    <!-- QR表示・ボタン群 -->
     <div id="qrActionArea">
       <div class="btn-group">
         <button class="btn-main" onclick="processAndSave()">保存してQR表示</button>
@@ -510,18 +493,29 @@
   <div id="viewSeaPrompt" class="view-sea-prompt">画面をタップするとメニューに戻ります</div>
 
   <script>
-    const STORAGE_KEY = 'qr_input_history_v18';
+    const STORAGE_KEY = 'qr_input_history_v21';
     let currentMode = 'general';
     let isSeaOnlyMode = false;
 
-    const DOWN_ARROW = '\x04';
-    const ENTER_KEY  = '\n';
-    const TAB_KEY    = '\t';
+    // ASCII 制御文字定義
+    const DOWN_ARROW = '\x04'; // EOT (Tera HW0002用 ↓)
+    const ENTER_KEY  = '\r\n'; // CR+LF (確実なEnter改行)
+    const TAB_KEY    = '\t';   // HT (Tab)
 
     window.onload = function() {
       renderHistory();
       calculateABC();
     };
+
+    function updateWmsGuide() {
+      const isCompat = document.getElementById('wmsUseStandardKeys').checked;
+      const badge = document.getElementById('badgePName');
+      if (isCompat) {
+        badge.innerText = "➔ 自動 [Tab] [Enter]";
+      } else {
+        badge.innerText = "➔ 自動 [↓] [Enter]";
+      }
+    }
 
     function toggleMenu(open) {
       const menu = document.getElementById('sideMenu');
@@ -575,29 +569,21 @@
       toggleMenu(false);
     }
 
-    // 物流ABC計算処理
     function calculateABC() {
-      const hourlyWage = parseNumber(document.getElementById('abcHourlyWage').value);
-      const totalItems = parseNumber(document.getElementById('abcTotalItems').value);
+      const mInbound  = parseNumber(document.getElementById('abcTimeInbound').value);
+      const mStorage  = parseNumber(document.getElementById('abcTimeStorage').value);
+      const mPicking  = parseNumber(document.getElementById('abcTimePicking').value);
+      const mPacking  = parseNumber(document.getElementById('abcTimePacking').value);
 
-      const tInbound  = parseNumber(document.getElementById('abcTimeInbound').value);
-      const tStorage  = parseNumber(document.getElementById('abcTimeStorage').value);
-      const tPicking  = parseNumber(document.getElementById('abcTimePicking').value);
-      const tPacking  = parseNumber(document.getElementById('abcTimePacking').value);
+      const totalMinutes = mInbound + mStorage + mPicking + mPacking;
+      const hours = Math.floor(totalMinutes / 60);
+      const mins = totalMinutes % 60;
 
-      const totalHours = tInbound + tStorage + tPicking + tPacking;
-      const totalCost = totalHours * hourlyWage;
-      const costPerItem = totalItems > 0 ? (totalCost / totalItems) : 0;
-
-      document.getElementById('abcTotalCost').innerText = `${Math.round(totalCost).toLocaleString()} 円`;
-      document.getElementById('abcCostPerItem').innerText = `${(Math.round(costPerItem * 100) / 100).toLocaleString()} 円 / 個`;
-
-      // プロポーションバー（割合）の反映
-      if (totalHours > 0) {
-        document.getElementById('barInbound').style.width = `${(tInbound / totalHours) * 100}%`;
-        document.getElementById('barStorage').style.width = `${(tStorage / totalHours) * 100}%`;
-        document.getElementById('barPicking').style.width = `${(tPicking / totalHours) * 100}%`;
-        document.getElementById('barPacking').style.width = `${(tPacking / totalHours) * 100}%`;
+      document.getElementById('abcTotalMinutes').innerText = `${totalMinutes.toLocaleString()} 分`;
+      if (hours > 0) {
+        document.getElementById('abcTotalHours').innerText = `（${hours}時間 ${mins}分）`;
+      } else {
+        document.getElementById('abcTotalHours').innerText = `（${mins}分）`;
       }
     }
 
@@ -660,7 +646,8 @@
       return { formatted, qty, pName: items[0], pPo: items[2] || "" };
     }
 
-    function parseWmsData(pName, qtyStr, lotStr, key1, key2) {
+    // WMSモードのシーケンス構築（互換モード判定対応）
+    function parseWmsData(pName, qtyStr, lotStr, key1, key2, useStandardKeys) {
       const cleanPName = pName.trim();
       const qtyNum     = parseNumber(qtyStr);
       const cleanLot   = lotStr.trim().toUpperCase();
@@ -670,7 +657,11 @@
       if (!cleanPName) return null;
 
       const tab5 = TAB_KEY.repeat(5);
-      const formatted = `${cleanPName}${DOWN_ARROW}${ENTER_KEY}${qtyNum}${cleanLot}${tab5}${cleanKey1}${cleanKey2}${TAB_KEY}`;
+      
+      // ↓キー信号（EOT）か、標準Tabキーか
+      const step1Key = useStandardKeys ? TAB_KEY : DOWN_ARROW;
+      
+      const formatted = `${cleanPName}${step1Key}${ENTER_KEY}${qtyNum}${cleanLot}${tab5}${cleanKey1}${cleanKey2}${TAB_KEY}`;
       const rawSummary = `[WMS] ${cleanPName} / Qty:${qtyNum} / Lot:${cleanLot} / K1:${cleanKey1} / K2:${cleanKey2}`;
 
       return {
@@ -694,8 +685,9 @@
         const lotStr = document.getElementById('wmsLot').value;
         const key1   = document.getElementById('wmsKey1').value;
         const key2   = document.getElementById('wmsKey2').value;
+        const useStandardKeys = document.getElementById('wmsUseStandardKeys').checked;
 
-        const parsed = parseWmsData(pName, qtyStr, lotStr, key1, key2);
+        const parsed = parseWmsData(pName, qtyStr, lotStr, key1, key2, useStandardKeys);
         if (!parsed) {
           alert("品番を入力してください。");
           return;
@@ -806,6 +798,7 @@
       if (!history[index]) return;
 
       const record = history[index];
+      const useStandardKeys = document.getElementById('wmsUseStandardKeys').checked;
 
       if (record.mode === 'wms' && record.wmsData) {
         const newPName = prompt("品番（コード番号/単体コード）を編集してください:", record.wmsData.pName);
@@ -819,7 +812,7 @@
         const newKey2 = prompt("付属キー2を編集してください:", record.wmsData.key2);
         if (newKey2 === null) return;
 
-        const parsed = parseWmsData(newPName, newQty, newLot, newKey1, newKey2);
+        const parsed = parseWmsData(newPName, newQty, newLot, newKey1, newKey2, useStandardKeys);
         if (!parsed) return;
 
         record.raw = parsed.rawSummary;
