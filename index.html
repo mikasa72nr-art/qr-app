@@ -154,10 +154,49 @@
     .abc-row { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
     .abc-row input { margin-top: 0; }
     .abc-res-box { background: rgba(0, 230, 118, 0.15); border: 1px solid var(--accent-green); border-radius: 8px; padding: 12px; margin-top: 15px; }
-    .qr-wrapper { display: flex; flex-direction: column; align-items: center; margin-top: 15px; }
-    #qrcode { background-color: #FFFFFF; padding: 20px; border-radius: 12px; }
-    #qrcode img, #qrcode canvas { width: 250px !important; height: 250px !important; }
-    .qr-info { font-size: 0.8rem; color: #FFF; margin-top: 8px; text-align: center; }
+    
+    /* 2ステップQR並びスタイル */
+    .wms-qr-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-top: 15px;
+      align-items: center;
+    }
+    .qr-step-box {
+      background: rgba(20, 15, 30, 0.85);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+      width: 100%;
+      max-width: 320px;
+      box-sizing: border-box;
+    }
+    .qr-step-title {
+      font-size: 0.9rem;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    .step-1-title { color: #FFB74D; }
+    .step-2-title { color: var(--accent-green); }
+    .qr-display {
+      background-color: #FFFFFF;
+      padding: 14px;
+      border-radius: 8px;
+      display: inline-block;
+    }
+    .qr-display img, .qr-display canvas {
+      width: 200px !important;
+      height: 200px !important;
+      display: block;
+    }
+    .step-guide-arrow {
+      color: var(--accent-yellow);
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+
     .history-header { display: flex; justify-content: space-between; align-items: center; margin-top: 25px; border-bottom: 1px solid var(--border-color); padding-bottom: 6px; }
     .btn-action { border: none; padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer; }
     .btn-combine { background-color: var(--accent-blue); color: #000; }
@@ -199,7 +238,7 @@
 
     <label style="margin-top:0; margin-bottom:6px;">モード選択</label>
     <button id="menuBtnGeneral" class="menu-item-btn" onclick="switchMode('general')">📄 汎用QRモード（Excel用）</button>
-    <button id="menuBtnWms" class="menu-item-btn active" onclick="switchMode('wms')">⚡ WMS高速QRモード（CIRRUS用）</button>
+    <button id="menuBtnWms" class="menu-item-btn active" onclick="switchMode('wms')">⚡ WMS 2段階高速QR（CIRRUS用）</button>
     <button id="menuBtnAbc" class="menu-item-btn" onclick="switchMode('abc')">⏱️ 1工程時間計測モード</button>
 
     <hr style="border-color: var(--border-color); margin: 20px 0;">
@@ -231,28 +270,28 @@
       </div>
     </div>
 
-    <!-- WMS高速モード用エリア（CIRRUS専用シーケンス） -->
+    <!-- WMS 2段階モード用エリア -->
     <div id="wmsFormArea">
       <div class="input-guide-bar">
-        ⚡ CIRRUSフロー: 品番 ➔ [↓で候補選択] ➔ [Enterで確定] ➔ 数量 ➔ ロット ➔ [Tab×5] ➔ 付属キー
+        ⚡ 2段階スキャン: ①品番スキャン ➔ 画面の[↓][Enter]押下 ➔ ②明細スキャン
       </div>
 
       <div class="wms-field-group">
-        <label>1. 品番（サジェスト検索キー） <span class="wms-seq-badge">➔ 自動 [↓] [Enter]</span></label>
+        <label>1. 品番（サジェスト入力用）</label>
         <input type="text" id="wmsPName" placeholder="例: 69750">
 
         <label>2. 数量（入荷予定数）</label>
-        <input type="number" id="wmsQty" placeholder="例: 3572466">
+        <input type="number" id="wmsQty" placeholder="例: 566">
 
         <label>3. ロット番号 <span class="wms-seq-badge">➔ 自動 [Tab×5]</span></label>
-        <input type="text" id="wmsLot" placeholder="例: 26/RTT-026-01" style="text-transform: uppercase;" autocapitalize="characters">
+        <input type="text" id="wmsLot" placeholder="例: W345..." style="text-transform: uppercase;" autocapitalize="characters">
         <div class="symbol-btn-group">
           <button type="button" class="btn-sym" onmousedown="insertSymbol('wmsLot', '/', event)" ontouchstart="insertSymbol('wmsLot', '/', event)">/</button>
           <button type="button" class="btn-sym" onmousedown="insertSymbol('wmsLot', '-', event)" ontouchstart="insertSymbol('wmsLot', '-', event)">-</button>
         </div>
 
         <label>4. 付属キー1</label>
-        <input type="text" id="wmsKey1" placeholder="付属キー1を入力" style="text-transform: uppercase;" autocapitalize="characters">
+        <input type="text" id="wmsKey1" placeholder="例: RTEA24577" style="text-transform: uppercase;" autocapitalize="characters">
         <div class="symbol-btn-group">
           <button type="button" class="btn-sym" onmousedown="insertSymbol('wmsKey1', '/', event)" ontouchstart="insertSymbol('wmsKey1', '/', event)">/</button>
           <button type="button" class="btn-sym" onmousedown="insertSymbol('wmsKey1', '-', event)" ontouchstart="insertSymbol('wmsKey1', '-', event)">-</button>
@@ -300,9 +339,29 @@
         <button class="btn-main" onclick="processAndSave()">保存してQR表示</button>
       </div>
 
-      <div class="qr-wrapper">
-        <div id="qrcode"></div>
-        <div class="qr-info" id="qrStatus">データを入力して「保存してQR表示」を押してください</div>
+      <!-- WMS専用 2ステップQR表示エリア -->
+      <div id="wmsQrContainer" class="wms-qr-container" style="display:none;">
+        <div class="qr-step-box">
+          <div class="qr-step-title step-1-title">【ステップ①】品番入力QR</div>
+          <div id="qrcodePName" class="qr-display"></div>
+          <div style="font-size:0.75rem; color:var(--text-sub); margin-top:6px;">スキャン後に画面で ➔ [↓] ➔ [Enter] を押下</div>
+        </div>
+
+        <div class="step-guide-arrow">▼</div>
+
+        <div class="qr-step-box">
+          <div class="qr-step-title step-2-title">【ステップ②】明細（数量・ロット）一括QR</div>
+          <div id="qrcodeDetails" class="qr-display"></div>
+          <div style="font-size:0.75rem; color:var(--text-sub); margin-top:6px;">数量・ロット・Tab×5・付属キーを一括入力</div>
+        </div>
+      </div>
+
+      <!-- 汎用モード用 通常シングルQR表示エリア -->
+      <div id="generalQrContainer" class="wms-qr-container" style="display:none;">
+        <div class="qr-step-box">
+          <div class="qr-step-title">Excel用 QRコード</div>
+          <div id="qrcodeGeneral" class="qr-display"></div>
+        </div>
       </div>
 
       <div class="history-header">
@@ -310,7 +369,7 @@
         <div style="display: flex; gap: 4px;">
           <button class="btn-action btn-combine" onclick="generateCombinedQR()">まとめQR</button>
           <button class="btn-action btn-delete-sub" onclick="deleteSelectedHistory()">選択削除</button>
-          <button class="btn-action btn-clear" onclick="clearHistory()">全削除</button>
+          <button class="btn-clear btn-action" onclick="clearHistory()">全削除</button>
         </div>
       </div>
       <div class="history-list" id="historyList"></div>
@@ -320,14 +379,12 @@
   <div id="viewSeaPrompt" class="view-sea-prompt">画面をタップするとメニューに戻ります</div>
 
   <script>
-    const STORAGE_KEY = 'qr_input_history_v23';
-    let currentMode = 'wms'; // 初期表示をWMSモードに設定
+    const STORAGE_KEY = 'qr_input_history_v25';
+    let currentMode = 'wms';
     let isSeaOnlyMode = false;
 
-    // ASCII 制御コード定義（Tera HW0002用）
-    const DOWN_ARROW = '\x04'; // EOT (下矢印キー ↓)
-    const ENTER_KEY  = '\n';   // 単一LF（確定Enter）
-    const TAB_KEY    = '\t';   // HT (Tab)
+    const ENTER_KEY = '\r';
+    const TAB_KEY   = '\t';
 
     window.onload = function() {
       renderHistory();
@@ -365,6 +422,10 @@
       areaGeneral.style.display = 'none';
       areaWms.style.display = 'none';
       areaAbc.style.display = 'none';
+
+      // QR表示枠のリセット
+      document.getElementById('wmsQrContainer').style.display = 'none';
+      document.getElementById('generalQrContainer').style.display = 'none';
 
       if (mode === 'wms') {
         btnWms.classList.add('active');
@@ -457,7 +518,7 @@
       return { formatted, qty, pName: items[0], pPo: items[2] || "" };
     }
 
-    // CIRRUS WMS専用キーシーケンス（69750 ➔ ↓ ➔ Enter ➔ 数量 ➔ ロット ➔ Tab×5 ➔ Key1 ➔ Key2 ➔ Tab）
+    // WMS用：ステップ①（品番）とステップ②（明細一括）を分離生成
     function parseWmsData(pName, qtyStr, lotStr, key1, key2) {
       const cleanPName = pName.trim();
       const qtyNum     = parseNumber(qtyStr);
@@ -467,13 +528,25 @@
 
       if (!cleanPName) return null;
 
+      // ステップ①：純粋な品番のみ
+      const step1Text = cleanPName;
+
+      // ステップ②：数量 ➔ Tab ➔ ロット ➔ Tab×5 ➔ 付属1 ➔ 付属2 ➔ Tab
       const tab5 = TAB_KEY.repeat(5);
+      const step2Text = `${qtyNum}${TAB_KEY}${cleanLot}${tab5}${cleanKey1}${cleanKey2}${TAB_KEY}`;
 
-      // [品番] ➔ [↓] ➔ [Enter] ➔ [数量] ➔ [ロット] ➔ [Tab×5] ➔ [付属1] ➔ [付属2] ➔ [Tab]
-      const formatted = `${cleanPName}${DOWN_ARROW}${ENTER_KEY}${qtyNum}${cleanLot}${tab5}${cleanKey1}${cleanKey2}${TAB_KEY}`;
-      const rawSummary = `[CIRRUS] ${cleanPName} / 数量:${qtyNum} / ロット:${cleanLot}`;
+      const rawSummary = `[CIRRUS 2段階] ${cleanPName} / 数量:${qtyNum} / ロット:${cleanLot}`;
 
-      return { formatted, qty: qtyNum, rawSummary, pName: cleanPName, lot: cleanLot, key1: cleanKey1, key2: cleanKey2 };
+      return {
+        step1Text,
+        step2Text,
+        qty: qtyNum,
+        rawSummary,
+        pName: cleanPName,
+        lot: cleanLot,
+        key1: cleanKey1,
+        key2: cleanKey2
+      };
     }
 
     function processAndSave() {
@@ -497,14 +570,19 @@
         document.getElementById('wmsKey1').value = parsed.key1;
         document.getElementById('wmsKey2').value = parsed.key2;
 
-        renderQR(parsed.formatted);
-        document.getElementById('qrStatus').innerText = `CIRRUS用高速QR生成完了 (${timeStr})`;
+        // 2つのQRコードを描画
+        document.getElementById('generalQrContainer').style.display = 'none';
+        document.getElementById('wmsQrContainer').style.display = 'flex';
+
+        renderSingleQR('qrcodePName', parsed.step1Text);
+        renderSingleQR('qrcodeDetails', parsed.step2Text);
 
         saveToHistory({
           mode: 'wms',
           timestamp: timeStr,
           raw: parsed.rawSummary,
-          formatted: parsed.formatted,
+          step1Text: parsed.step1Text,
+          step2Text: parsed.step2Text,
           wmsData: { pName: parsed.pName, qty: parsed.qty, lot: parsed.lot, key1: parsed.key1, key2: parsed.key2 },
           count: 1,
           qty: parsed.qty,
@@ -534,8 +612,9 @@
         if (formattedLines.length === 0) return;
 
         const finalQrText = formattedLines.join(ENTER_KEY);
-        renderQR(finalQrText);
-        document.getElementById('qrStatus').innerText = `生成完了 [Excel汎用] (${lines.length}件分 / ${timeStr})`;
+        document.getElementById('wmsQrContainer').style.display = 'none';
+        document.getElementById('generalQrContainer').style.display = 'flex';
+        renderSingleQR('qrcodeGeneral', finalQrText);
 
         saveToHistory({
           mode: 'general',
@@ -549,6 +628,17 @@
       }
     }
 
+    function renderSingleQR(elementId, text) {
+      const container = document.getElementById(elementId);
+      container.innerHTML = "";
+      new QRCode(container, {
+        text: text,
+        width: 200,
+        height: 200,
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    }
+
     function markAsExported(index) {
       let history = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
       if (history[index]) {
@@ -556,17 +646,6 @@
         localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
         renderHistory();
       }
-    }
-
-    function renderQR(text) {
-      const qrContainer = document.getElementById('qrcode');
-      qrContainer.innerHTML = "";
-      new QRCode(qrContainer, {
-        text: text,
-        width: 250,
-        height: 250,
-        correctLevel: QRCode.CorrectLevel.M
-      });
     }
 
     function saveToHistory(record) {
@@ -596,16 +675,24 @@
             <input type="checkbox" class="history-checkbox" data-index="${index}">
             <div class="history-content">
               <div class="history-card-header">
-                <span>[No. ${String(no).padStart(2, '0')}] ${item.mode === 'wms' ? '⚡CIRRUS' : '📄Excel汎用'} <span class="status-badge ${isDone ? 'done' : 'pending'}">${isDone ? '済' : '未出力'}</span></span>
+                <span>[No. ${String(no).padStart(2, '0')}] ${item.mode === 'wms' ? '⚡CIRRUS 2段階' : '📄Excel汎用'} <span class="status-badge ${isDone ? 'done' : 'pending'}">${isDone ? '済' : '未出力'}</span></span>
                 <span>${item.timestamp}</span>
               </div>
               <div class="history-data">${item.raw.replace(/\n/g, ' / ')}</div>
             </div>
           `;
           card.querySelector('.history-content').onclick = function() {
-            renderQR(item.formatted);
+            if (item.mode === 'wms') {
+              document.getElementById('generalQrContainer').style.display = 'none';
+              document.getElementById('wmsQrContainer').style.display = 'flex';
+              renderSingleQR('qrcodePName', item.step1Text);
+              renderSingleQR('qrcodeDetails', item.step2Text);
+            } else {
+              document.getElementById('wmsQrContainer').style.display = 'none';
+              document.getElementById('generalQrContainer').style.display = 'flex';
+              renderSingleQR('qrcodeGeneral', item.formatted);
+            }
             markAsExported(index);
-            document.getElementById('qrStatus').innerText = `再出力 [済] [No. ${String(no).padStart(2, '0')}] (${item.timestamp})`;
             window.scrollTo({ top: 0, behavior: 'smooth' });
           };
           listContainer.appendChild(card);
@@ -617,8 +704,8 @@
     function clearHistory() {
       if (confirm("全ての入力履歴を削除しますか？")) {
         localStorage.removeItem(STORAGE_KEY);
-        document.getElementById('qrcode').innerHTML = "";
-        document.getElementById('qrStatus').innerText = "データを入力して「保存してQR表示」を押してください";
+        document.getElementById('wmsQrContainer').style.display = 'none';
+        document.getElementById('generalQrContainer').style.display = 'none';
         renderHistory();
       }
     }
@@ -634,15 +721,15 @@
       checkboxes.forEach(cb => {
         const index = parseInt(cb.dataset.index);
         if (history[index]) {
-          combinedLines.push(history[index].formatted);
+          combinedLines.push(history[index].formatted || `${history[index].step1Text}\t${history[index].step2Text}`);
           history[index].isExported = true;
         }
       });
       localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
       renderHistory();
-      const finalQrText = combinedLines.join(ENTER_KEY);
-      renderQR(finalQrText);
-      document.getElementById('qrStatus').innerText = `選択履歴のまとめQR生成完了 [出力済み] (${checkboxes.length}件分)`;
+      document.getElementById('wmsQrContainer').style.display = 'none';
+      document.getElementById('generalQrContainer').style.display = 'flex';
+      renderSingleQR('qrcodeGeneral', combinedLines.join(ENTER_KEY));
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
